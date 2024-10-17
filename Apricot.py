@@ -102,6 +102,9 @@ for func in functions:
 for l, line in enumerate(altered.splitlines()):
     variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?([^;]+))', line)]
     for variable in variables:
+        if variable[1] in names:
+            error('NameError', variable[1], line.strip(), l, f'Variable with name "{variable[1]}" already created')
+
         if variable[2] == 'var':
             variable[2] = tyval(variable[3]).__name__
             altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
