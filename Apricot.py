@@ -1,7 +1,6 @@
 from io import StringIO
 from math import floor
 import re
-import sys
 from colored import Fore, Style
 from typing import Literal, get_type_hints
 
@@ -72,7 +71,7 @@ with open('code.apr', 'r') as f:
 
 # Variables
 altered = code
-variables = {}
+names = []
 syntax = [r'def [a-zA-Z][a-zA-Z0-9_]*\([^)]*\)', r'def \([^)]*\)']
 
 # Void buffer
@@ -85,7 +84,7 @@ for l, line in enumerate(altered.splitlines()):
         continue
 
     if line[-1] not in [':', ';']:
-        error('LineError', line, line, l)
+        error('LineError', line.strip(), line.strip(), l)
 
 # Syntax keyword errors
 for l, line in enumerate(altered.splitlines()):
@@ -97,24 +96,27 @@ for l, line in enumerate(altered.splitlines()):
 # Functions
 functions = re.findall(r'(func (null|int|float|str|bool|bytes|list|tuple|dict) ([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
 for func in functions:
-    altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_) -> {func[1] if func[1] != 'null' else 'None'}:')
-
-# Old variable declaration errors
-for l, line in enumerate(altered.splitlines()):
-    wrongVars = re.findall(r'(?<!.)\w+ ?= ?\S.*', line)
-    for wrongVar in wrongVars:
-        error('SyntaxError', wrongVar, line, l)
+    altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_) -> {func[1] if func[1] != "null" else "None"}:')
 
 # Variable types
 for l, line in enumerate(altered.splitlines()):
-    variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?(\w+))', line)]
+    variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?([^;]+))', line)]
     for variable in variables:
         if variable[2] == 'var':
             variable[2] = tyval(variable[3]).__name__
             altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
 
         if tyval(variable[3]) is not eval(variable[2]):
-            error('TypeError', variable[0], line, l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
+            error('TypeError', variable[0], line.strip(), l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
+
+        names.append(variable[1])
+
+# Plain var declarations
+for l, line in enumerate(altered.splitlines()):
+    plainVars = re.findall(r'(?<!.)(\w+) ?= ?\S.*', line)
+    for plain in plainVars:
+        if plain not in names:
+            error('SyntaxError', plain, line.strip(), l)
 
 # Wrong __init__
 wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
