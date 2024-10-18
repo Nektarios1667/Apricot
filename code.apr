@@ -1,3 +1,2 @@
-name: str = 'name = 10';
+name = '10';
 \\ some important stuff
-print(name);

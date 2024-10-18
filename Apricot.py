@@ -9,7 +9,7 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
-def error(error: str, description: str, line: str, row: int | Literal["N/A"], extra: str = ''):
+def error(error: str, line: str, description: str, row: int | Literal["N/A"], extra: str = ''):
     print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
     exit(-1)
 
@@ -74,8 +74,10 @@ with open('code.apr', 'r') as f:
 # Variables
 altered = code
 varTypes = {}
-syntax = [r'def [a-zA-Z][a-zA-Z0-9_]*\([^)]*\)', r'def \([^)]*\)']
 strings = []
+direct = {'log': 'print', 'switch': 'match', 'this': 'self', 'throw': 'raise', 'catch': 'except', 'null': 'None', 'false': 'False', 'true': 'True', 'iter': 'for', 'else if': 'elif',
+          'check': 'assert', 'next': 'continue'}
+syntax = [*direct.values(), '__init__', 'lambda', 'nonlocal', 'with', 'async', 'await', 'del', 'from']
 
 # Void buffer
 voidIO = StringIO
@@ -104,9 +106,14 @@ for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
 # Syntax keyword errors
 for l, line in enumerate(altered.splitlines()):
     for syn in syntax:
-        errors = re.findall(syn, line)
-        if errors:
-            error('SyntaxError', line, errors[0], l)
+        if syn in line:
+            error('SyntaxError', line, syn, l)
+
+# Remove old type casting
+for l, line in enumerate(altered.splitlines()):
+    wrongCasts = re.findall(r'((int|float|str|bool|list|tuple|dict)\([^)]*\))', line)
+    if wrongCasts:
+        error('SyntaxError', wrongCasts[0][0], line, l)
 
 # Functions
 functions = re.findall(r'(func (null|int|float|str|bool|bytes|list|tuple|dict) ([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
@@ -134,7 +141,7 @@ for l, line in enumerate(altered.splitlines()):
     plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*))', line)
     for plain in plainVars:
         if plain[1] not in varTypes.keys():
-            error('VariableError', plain[1], line.strip(), l, 'Variable assignment before creation')
+            error('VariableError', line.strip(), plain[1], l, 'Variable assignment before creation')
         elif tyval(plain[2][:-1]) is not varTypes[plain[1]]:
             error('TypeError', line.strip(), plain[0], l, f'Variable type defined as -{varTypes[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
 
@@ -152,6 +159,14 @@ for init in inits:
 functions = re.findall(r'(def ([a-zA-Z][a-zA-Z0-9_]*)(\([^)]*\)) -> (None|int|float|str|bool|list|tuple|dict):)', altered)
 for func in functions:
     funcCheck(func, altered)
+
+# Switch replacements
+for apr, py in direct.items():
+    altered = altered.replace(apr, py)
+
+# Type casting
+for cast in re.findall('(<(int|float|str|bool|list|tuple|dict)> ?(.*))\b', altered):
+    altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
 
 # Inject strings
 for f, fill in enumerate(strings):
