@@ -1,2 +1,9 @@
-name = '10';
-\\ some important stuff
+func int add(a, b):
+    c = '100';
+    c = <int c>;
+    return c;
+
+name: str = 'bob';
+age: str = '22';
+
+log(add(<int age>, 10));

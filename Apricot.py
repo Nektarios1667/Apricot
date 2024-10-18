@@ -16,8 +16,10 @@ def error(error: str, line: str, description: str, row: int | Literal["N/A"], ex
 def tyval(value):
     if value[0] == '\x1a':
         return str
-
-    return type(eval(value))
+    try:
+        return type(eval(value))
+    except NameError:
+        return object
 
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
@@ -25,6 +27,12 @@ def findLine(phrase: str, paragraph: str):
         if phrase in line:
             return i + 1
     return "N/A"
+
+def funcUpType(l: int, paragraph: str):
+    for line in paragraph.splitlines()[l::-1]:
+        if line.strip().startswith('def '):
+            # Find return type annotation and remove whitespace/colon
+            return eval(line.split('->')[1][:-1].strip()).__name__
 
 def indents(line: str):
     count = 0
@@ -53,6 +61,9 @@ def funcCheck(func: tuple, altered: str):
             function += f'\n{line}'
 
     # Execute function to add to globals
+    for i, inj in enumerate(strings):
+        function = function.replace(f'\x1a@{i}', inj)
+
     exec(function, globals())
     call = globals()[func[1]]
 
@@ -75,9 +86,9 @@ with open('code.apr', 'r') as f:
 altered = code
 varTypes = {}
 strings = []
-direct = {'log': 'print', 'switch': 'match', 'this': 'self', 'throw': 'raise', 'catch': 'except', 'null': 'None', 'false': 'False', 'true': 'True', 'iter': 'for', 'else if': 'elif',
-          'check': 'assert', 'next': 'continue'}
-syntax = [*direct.values(), '__init__', 'lambda', 'nonlocal', 'with', 'async', 'await', 'del', 'from']
+direct = {'log(': 'print(', 'switch ': 'match ', 'this.': 'self.', 'throw ': 'raise ', 'catch ': 'except ', 'null': 'None', 'false': 'False', 'true': 'True', 'iter ': 'for', 'else if': 'elif',
+          'check ': 'assert ', 'next;': 'continue'}
+syntax = [*direct.values(), '__init__', 'lambda', 'nonlocal', 'with', 'async', 'await', 'del']
 
 # Void buffer
 voidIO = StringIO
@@ -118,7 +129,7 @@ for l, line in enumerate(altered.splitlines()):
 # Functions
 functions = re.findall(r'(func (null|int|float|str|bool|bytes|list|tuple|dict) ([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
 for func in functions:
-    altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_) -> {func[1] if func[1] != "null" else "None"}:')
+    altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_: object) -> {func[1] if func[1] != "null" else "None"}:')
 
 # Variable types
 for l, line in enumerate(altered.splitlines()):
@@ -155,21 +166,30 @@ inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func \2(\([^)]*\)):)', alt
 for init in inits:
     altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n    def __init__{init[3]}:')
 
-# Final type checks
-functions = re.findall(r'(def ([a-zA-Z][a-zA-Z0-9_]*)(\([^)]*\)) -> (None|int|float|str|bool|list|tuple|dict):)', altered)
-for func in functions:
-    funcCheck(func, altered)
+# Final return checks
+for l, line in enumerate(altered.splitlines()):
+    funcReturns = re.findall(r'((\t| {4})*return ([^;]*);)', line)
+    for funcReturn in funcReturns:
+        # Prevent all similar returns from being incorrectly replaced
+        altered = '\n'.join([*altered.splitlines()[:l], f'{funcReturn[1]}return returnCheck({funcReturn[2]}, {funcUpType(l, altered)}, "{line}", {l})', *altered.splitlines()[l + 1:]])
 
 # Switch replacements
 for apr, py in direct.items():
     altered = altered.replace(apr, py)
 
 # Type casting
-for cast in re.findall('(<(int|float|str|bool|list|tuple|dict)> ?(.*))\b', altered):
+for cast in re.findall('(<(int|float|str|bool|list|tuple|dict) ?(.*)>)', altered):
     altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
 
 # Inject strings
 for f, fill in enumerate(strings):
     altered = altered.replace(f'\x1a@{f}', fill)
 
-exec(altered)
+# Libraries and execution
+def returnCheck(value, instance, line, l):
+    if isinstance(value, instance):
+        return value
+    else:
+        error('TypeError', line.strip(), value, l, f'Return type defined as -{instance.__name__}- but value is -{type(value).__name__}-')
+
+exec(altered.replace(';', ''), globals())
