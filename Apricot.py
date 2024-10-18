@@ -217,6 +217,7 @@ def apricompile(code: str):
         altered = altered.replace(f'\x1a@{f}', fill)
 
     # Setup
+    altered = altered + '\n' if altered[-1] != '\n' else ''
     altered = altered.replace(';\n', '\n')
 
     return altered, env
