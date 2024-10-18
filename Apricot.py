@@ -4,11 +4,19 @@ import re
 from colored import Fore, Style
 from typing import Literal, get_type_hints
 
+def inject(phrase: str):
+    for f, fill in enumerate(strings):
+        phrase = phrase.replace(f'\x1a@{f}', fill)
+    return phrase
+
 def error(error: str, description: str, line: str, row: int | Literal["N/A"], extra: str = ''):
-    print(f'{Fore.RED}{error}: "{line}" - "{description}" @ line {row}\n{extra}{Style.RESET}')
+    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
     exit(-1)
 
 def tyval(value):
+    if value[0] == '\x1a':
+        return str
+
     return type(eval(value))
 
 def findLine(phrase: str, paragraph: str):
@@ -17,12 +25,6 @@ def findLine(phrase: str, paragraph: str):
         if phrase in line:
             return i + 1
     return "N/A"
-
-def whitespaced(line: str):
-    for char in line[:]:
-        if char not in [' ', '\n', '\t']:
-            return False
-    return True
 
 def indents(line: str):
     count = 0
@@ -71,20 +73,33 @@ with open('code.apr', 'r') as f:
 
 # Variables
 altered = code
-names = {}
+varTypes = {}
 syntax = [r'def [a-zA-Z][a-zA-Z0-9_]*\([^)]*\)', r'def \([^)]*\)']
+strings = []
 
 # Void buffer
 voidIO = StringIO
 
+# Comments
+for comm in re.findall(r'\\\\.*', altered):
+    altered = altered.replace(comm, '')
+
 # Semicolons
 for l, line in enumerate(altered.splitlines()):
+    # Strip whitespace
+    line = line.strip()
+
     # Comments and empty lines
-    if line[:2] == r'\\' or whitespaced(line):
+    if line[:2] in [r'\\', '']:
         continue
 
     if line[-1] not in [':', ';']:
         error('LineError', line.strip(), line.strip(), l)
+
+# String replacements
+for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
+    altered = altered.replace(string[0], f'\x1a@{s}')
+    strings.append(string[0])
 
 # Syntax keyword errors
 for l, line in enumerate(altered.splitlines()):
@@ -102,26 +117,26 @@ for func in functions:
 for l, line in enumerate(altered.splitlines()):
     variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?([^;]+))', line)]
     for variable in variables:
-        if variable[1] in names.keys():
-            error('NameError', variable[1], line.strip(), l, f'Variable with name "{variable[1]}" already created')
+        if variable[1] in varTypes.keys():
+            error('NameError', line.strip(), variable[1], l, f'Variable with name "{variable[1]}" already created')
 
         if variable[2] == 'var':
             variable[2] = tyval(variable[3]).__name__
             altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
 
         if tyval(variable[3]) is not eval(variable[2]):
-            error('TypeError', variable[0], line.strip(), l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
+            error('TypeError', line.strip(), variable[0], l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
 
-        names[variable[1]] = tyval(variable[3])
+        varTypes[variable[1]] = tyval(variable[3])
 
 # Plain var declarations
 for l, line in enumerate(altered.splitlines()):
     plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*))', line)
     for plain in plainVars:
-        if plain[1] not in names.keys():
-            error('SyntaxError', plain[1], line.strip(), l)
-        elif tyval(plain[2][:-1]) is not names[plain[1]]:
-            error('TypeError', plain[0], line.strip(), l, f'Variable type defined as -{names[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
+        if plain[1] not in varTypes.keys():
+            error('VariableError', plain[1], line.strip(), l, 'Variable assignment before creation')
+        elif tyval(plain[2][:-1]) is not varTypes[plain[1]]:
+            error('TypeError', line.strip(), plain[0], l, f'Variable type defined as -{varTypes[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
 
 # Wrong __init__
 wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
@@ -137,5 +152,9 @@ for init in inits:
 functions = re.findall(r'(def ([a-zA-Z][a-zA-Z0-9_]*)(\([^)]*\)) -> (None|int|float|str|bool|list|tuple|dict):)', altered)
 for func in functions:
     funcCheck(func, altered)
+
+# Inject strings
+for f, fill in enumerate(strings):
+    altered = altered.replace(f'\x1a@{f}', fill)
 
 exec(altered)
