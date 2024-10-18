@@ -1,4 +1,6 @@
-﻿func int add(a, b):
+﻿import "C:/Users/nekta/PycharmProjects/Apricot/functions.apl";
+
+func int add(a, b):
     c = '100';
     c = <int c>;
     return c;
@@ -16,4 +18,4 @@ age: str = '22';
 blambdala: null = null;
 log(blambdala);
 
-log(add(<int age>, 10));
+log(multiAdd(1, 2, 3));

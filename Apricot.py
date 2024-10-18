@@ -1,12 +1,36 @@
-from Apricode import *
-from math import floor
 import re
 import sys
+from colored import Fore, Style
+from typing import Literal
 import os
-from Functions import *
 
 strings = []
 
+def inject(phrase: str):
+    phrase = str(phrase)
+    for f, fill in enumerate(strings):
+        phrase = phrase.replace(f'\x1a@{f}', fill)
+    return phrase
+
+def error(error: str, line: str, description: str, row: int | Literal["N/A"], extra: str = ''):
+    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
+    exit(-1)
+
+def returnCheck(value, instance, line, l):
+    if instance is not None and isinstance(value, instance):
+        return value
+    else:
+        error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
+
+def log(*args):
+    print('null' if args[0] is None else args[0], *args[1:])
+
+def funcUpType(l: int, paragraph: str):
+    for line in paragraph.splitlines()[l::-1]:
+        if line.strip().startswith('def '):
+            # Find return type annotation and remove whitespace/colon
+            funcType = eval(line.split('->')[1][:-1].strip())
+            return funcType if funcType is None else funcType.__name__
 
 def tyval(value):
     global strings
@@ -18,7 +42,7 @@ def tyval(value):
     except NameError:
         return object
     except SyntaxError:
-        return tyval(inject(value, strings))
+        return tyval(inject(value,))
 
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
@@ -27,33 +51,46 @@ def findLine(phrase: str, paragraph: str):
             return i + 1
     return "N/A"
 
-def funcUpType(l: int, paragraph: str):
-    for line in paragraph.splitlines()[l::-1]:
-        if line.strip().startswith('def '):
-            # Find return type annotation and remove whitespace/colon
-            funcType = eval(line.split('->')[1][:-1].strip())
-            return funcType if funcType is None else funcType.__name__
+def load(file: str):
+    global env
 
-def indents(line: str):
-    count = 0
-    for char in line:
-        if char == '\t':
-            count += 1
-        elif char == ' ':
-            count += .25
-        else:
-            break
-    return floor(count)
+    # Reading
+    with open(file, 'rb') as f:
+        code = f.read().decode('utf-8', errors='ignore')
 
-def apricompile(code: str, name: str):
+    # Checking if the code is valid
+    allowed = ['$', '$ ', '    ', '\t', 'func', 'class']
+    for l, line in enumerate(code.splitlines()):
+        correct = False
+
+        for allow in allowed:
+            if line.startswith(allow):
+                correct = True
+        if not correct:
+            error('LibararyError', line, line, l)
+
+    # Running
+    compiled, importing = apricompile(code)
+    exec(compiled, importing)
+
+    # Clean globals
+    for var, val in list(importing.items()).copy():
+        if not callable(val):
+            importing.pop(var)
+
+    env.update(importing)
+
+
+def apricompile(code: str):
     global strings
 
     # Variables
+    env = {'log': log, 'returnCheck': returnCheck, 'load': load}
     altered = code
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (\w+);)': 'except \x1a:1',
-              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue'}
+              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(\x1a:1)', r'(include (\w+);)': 'import \x1a:1'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'with ', 'async ', 'await ']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None'}
@@ -89,7 +126,7 @@ def apricompile(code: str, name: str):
     for l, line in enumerate(altered.splitlines()):
         for syn in syntaxPhrase:
             if re.findall(syn, line):
-                error('SyntaxError', line, syn, l)
+                error('SyntaxError', line, syn, l,)
 
     # Remove old type casting
     for l, line in enumerate(altered.splitlines()):
@@ -169,7 +206,7 @@ def apricompile(code: str, name: str):
     # Setup
     altered = altered.replace(';\n', '\n')
 
-    return Apricode(name, version=0.1, code=code, compiled=altered)
+    return altered, env
 
 if __name__ == '__main__':
     if os.path.basename(sys.argv[0]) == 'Apricot.py':
@@ -181,11 +218,11 @@ if __name__ == '__main__':
     with open(sys.argv[0], 'r', encoding='utf-8-sig') as f:
         code = f.read()
 
-    codeclass = apricompile(code, os.path.basename(sys.argv[0]))
-
+    compiled, env = apricompile(code)
     if '-e' in sys.argv:
-        codeclass.execute()
+        print(env)
+        exec(compiled, env)
 
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-            f.write(codeclass.compiled)
+            f.write(compiled)
