@@ -14,8 +14,6 @@ test: object = Item('a', 10);
 
 name: str = 'bob';
 age: str = '22';
-
-blambdala: null = null;
-log(blambdala);
+ageInt: int = <int age>;
 
 log(multiAdd(1, 2, 3));

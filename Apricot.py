@@ -1,5 +1,8 @@
+import linecache
 import re
 import sys
+import traceback
+
 from colored import Fore, Style
 from typing import Literal
 import os
@@ -7,6 +10,8 @@ import os
 strings = []
 
 def inject(phrase: str):
+    global strings
+
     phrase = str(phrase)
     for f, fill in enumerate(strings):
         phrase = phrase.replace(f'\x1a@{f}', fill)
@@ -39,10 +44,18 @@ def tyval(value):
         return str
     try:
         return type(eval(value))
+
     except NameError:
-        return object
+        if value.split('(')[0] in ['int', 'float', 'bool', 'str', 'list', 'tuple', 'object']:
+            return eval(value.split('(')[0])
+        else:
+            return object
+
     except SyntaxError:
-        return tyval(inject(value,))
+        if '\x1a' in value:
+            return tyval(inject(value))
+        elif value.split('(')[0] in ['int', 'float', 'bool', 'str', 'list', 'tuple', 'object']:
+            return eval(value.split('(')[0])
 
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
@@ -134,6 +147,10 @@ def apricompile(code: str):
         if wrongCasts:
             error('SyntaxError', wrongCasts[0][0], line, l)
 
+    # Type casting
+    for cast in re.findall('(<(int|float|str|bool|list|tuple|dict|object) ?(.*)>)', altered):
+        altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
+
     # Functions
     functions = re.findall(r'(func +(null|int|float|str|bool|bytes|list|tuple|dict|object) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
     for func in functions:
@@ -195,10 +212,6 @@ def apricompile(code: str):
     for apr, py in directPhrase.items():
         altered = re.sub(apr, py, altered)
 
-    # Type casting
-    for cast in re.findall('(<(int|float|str|bool|list|tuple|dict|object) ?(.*)>)', altered):
-        altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
-
     # Inject strings
     for f, fill in enumerate(strings):
         altered = altered.replace(f'\x1a@{f}', fill)
@@ -209,7 +222,8 @@ def apricompile(code: str):
     return altered, env
 
 if __name__ == '__main__':
-    if os.path.basename(sys.argv[0]) == 'Apricot.py':
+    file = os.path.basename(sys.argv[0])
+    if file == 'Apricot.py':
         if '-p' in sys.argv:
             sys.argv[0] = sys.argv[sys.argv.index('-p') + 1]
         else:
@@ -220,8 +234,28 @@ if __name__ == '__main__':
 
     compiled, env = apricompile(code)
     if '-e' in sys.argv:
-        print(env)
-        exec(compiled, env)
+        try:
+            exec(compiled, env)
+
+        # Builtin exceptions
+        except Exception as e:
+            # Extract
+            extracted = sys.exc_info()[2]
+            tb = traceback.extract_tb(extracted)[-1]
+
+            # Get the line number where the error occurred
+            l = tb.lineno
+
+            # Get line code
+            line = compiled.splitlines()[l - 1]
+
+            # Add buffers to make lines match
+            while '\n\n' in compiled:
+                compiled = compiled.replace('\n\n', '\n//\n')
+
+            # Get line and raise error
+            line = compiled.splitlines()[l - 1]
+            error(type(e).__name__, line, line, l, extra=str(e).capitalize())
 
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
