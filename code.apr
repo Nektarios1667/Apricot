@@ -3,6 +3,13 @@ func int add(a, b):
     c = <int c>;
     return c;
 
+class Item:
+    func null Item(self, name, money):
+        this.name = name;
+        this.money = money;
+
+test: object = Item('a', 10);
+
 name: str = 'bob';
 age: str = '22';
 

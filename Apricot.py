@@ -5,6 +5,7 @@ from colored import Fore, Style
 from typing import Literal, get_type_hints
 
 def inject(phrase: str):
+    phrase = str(phrase)
     for f, fill in enumerate(strings):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
@@ -20,6 +21,10 @@ def tyval(value):
         return type(eval(value))
     except NameError:
         return object
+    except SyntaxError:
+        for s, string in enumerate(strings):
+            value = value.replace(f'\x1a@{s}', string)
+        return tyval(value)
 
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
@@ -32,7 +37,8 @@ def funcUpType(l: int, paragraph: str):
     for line in paragraph.splitlines()[l::-1]:
         if line.strip().startswith('def '):
             # Find return type annotation and remove whitespace/colon
-            return eval(line.split('->')[1][:-1].strip()).__name__
+            funcType = eval(line.split('->')[1][:-1].strip())
+            return funcType if funcType is None else funcType.__name__
 
 def indents(line: str):
     count = 0
@@ -44,39 +50,6 @@ def indents(line: str):
         else:
             break
     return floor(count)
-
-def funcCheck(func: tuple, altered: str):
-    # Line number
-    defLine = findLine(func[0], altered) - 1
-
-    # Indents
-    indented = indents(func[0])
-
-    # Function text
-    function = func[0]
-    for l, line in enumerate(altered.splitlines()[defLine + 1:]):  # Defline starts on definition so add oen to start with actual content
-        if indents(line) <= indented:
-            break
-        else:
-            function += f'\n{line}'
-
-    # Execute function to add to globals
-    for i, inj in enumerate(strings):
-        function = function.replace(f'\x1a@{i}', inj)
-
-    exec(function, globals())
-    call = globals()[func[1]]
-
-    # Check return type hint
-    expected = get_type_hints(call).get('return', None)
-
-    # Function lines
-    for l, line in enumerate(function.splitlines()[1:]):  # Defline starts on definition so add oen to start with actual content
-        if indents(line) <= indented:
-            break
-        elif line.strip()[:6] == 'return' and tyval(line.strip()[6:-1]).__name__ != expected.__name__:
-            error('TypeError', line.strip(), line.strip()[6:-1].strip(), l, f'Function return defined as -{tyval(line.strip()[6:-1]).__name__}- but value with type -{expected.__name__}- was returned')
-
 
 # Code
 with open('code.apr', 'r') as f:
@@ -122,25 +95,25 @@ for l, line in enumerate(altered.splitlines()):
 
 # Remove old type casting
 for l, line in enumerate(altered.splitlines()):
-    wrongCasts = re.findall(r'((int|float|str|bool|list|tuple|dict)\([^)]*\))', line)
+    wrongCasts = re.findall(r'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
     if wrongCasts:
         error('SyntaxError', wrongCasts[0][0], line, l)
 
 # Functions
-functions = re.findall(r'(func (null|int|float|str|bool|bytes|list|tuple|dict) ([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
+functions = re.findall(r'(func +(null|int|float|str|bool|bytes|list|tuple|dict|object) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
 for func in functions:
     altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_: object) -> {func[1] if func[1] != "null" else "None"}:')
 
 # Variable types
 for l, line in enumerate(altered.splitlines()):
-    variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?([^;]+))', line)]
+    variables = [list(found) for found in re.findall(r'((\w+): *(int|float|str|bool|list|tuple|dict|var|object) *= *([^;]+))', line)]
     for variable in variables:
         if variable[1] in varTypes.keys():
             error('NameError', line.strip(), variable[1], l, f'Variable with name "{variable[1]}" already created')
 
         if variable[2] == 'var':
             variable[2] = tyval(variable[3]).__name__
-            altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
+            altered = altered.replace(variable[0], f'{variable[1]}: *{variable[2]} *= *{variable[3]}')
 
         if tyval(variable[3]) is not eval(variable[2]):
             error('TypeError', line.strip(), variable[0], l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
@@ -162,13 +135,14 @@ if wrongInits:
     error('SyntaxError', f'func __init__{wrongInits[0][3]}', f'__init__', findLine('__init__', altered))
 
 # Fixing __init__
-inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func \2(\([^)]*\)):)', altered)
+inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n+[\t ]*def \2(\([^)]*\)) *-> *(int|float|str|list|tuple|object|bool|None) *:)', altered)
 for init in inits:
-    altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n    def __init__{init[3]}:')
+    altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n    def __init__{init[3]} -> {init[4] if init[4] != "null" else "None"}:')
 
 # Final return checks
 for l, line in enumerate(altered.splitlines()):
-    funcReturns = re.findall(r'((\t| {4})*return ([^;]*);)', line)
+    funcReturns = re.findall(r'(((?:\t| {4})*)return ([^;]*);)', line)
+    # 0 = full phrase, 1 = full whitespace, 2 = returning phrase
     for funcReturn in funcReturns:
         # Prevent all similar returns from being incorrectly replaced
         altered = '\n'.join([*altered.splitlines()[:l], f'{funcReturn[1]}return returnCheck({funcReturn[2]}, {funcUpType(l, altered)}, "{line}", {l})', *altered.splitlines()[l + 1:]])
@@ -178,7 +152,7 @@ for apr, py in direct.items():
     altered = altered.replace(apr, py)
 
 # Type casting
-for cast in re.findall('(<(int|float|str|bool|list|tuple|dict) ?(.*)>)', altered):
+for cast in re.findall('(<(int|float|str|bool|list|tuple|dict|object) ?(.*)>)', altered):
     altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
 
 # Inject strings
@@ -187,9 +161,9 @@ for f, fill in enumerate(strings):
 
 # Libraries and execution
 def returnCheck(value, instance, line, l):
-    if isinstance(value, instance):
+    if instance is not None and isinstance(value, instance):
         return value
     else:
-        error('TypeError', line.strip(), value, l, f'Return type defined as -{instance.__name__}- but value is -{type(value).__name__}-')
+        error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
 
 exec(altered.replace(';', ''), globals())
