@@ -1,6 +1,4 @@
-﻿#!Apricot.py
-
-func int add(a, b):
+﻿func int add(a, b):
     c = '100';
     c = <int c>;
     return c;
@@ -19,5 +17,3 @@ blambdala: null = null;
 log(blambdala);
 
 log(add(<int age>, 10));
-
-iter x in range()

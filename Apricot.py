@@ -1,22 +1,12 @@
-from Apricode import Apricode
+from Apricode import *
 from math import floor
 import re
-from colored import Fore, Style
-from typing import Literal, get_type_hints
+import sys
+import os
+from Functions import *
 
 strings = []
 
-def inject(phrase: str):
-    global strings
-
-    phrase = str(phrase)
-    for f, fill in enumerate(strings):
-        phrase = phrase.replace(f'\x1a@{f}', fill)
-    return phrase
-
-def error(error: str, line: str, description: str, row: int | Literal["N/A"], extra: str = ''):
-    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
-    exit(-1)
 
 def tyval(value):
     global strings
@@ -28,9 +18,7 @@ def tyval(value):
     except NameError:
         return object
     except SyntaxError:
-        for s, string in enumerate(strings):
-            value = value.replace(f'\x1a@{s}', string)
-        return tyval(value)
+        return tyval(inject(value, strings))
 
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
@@ -64,7 +52,7 @@ def apricompile(code: str, name: str):
     altered = code
     varTypes = {}
     strings = []
-    direct = {r'(log\((.*)\);)': 'print(\x1a:1)', r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (\w+);)': 'except \x1a:1',
+    direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (\w+);)': 'except \x1a:1',
               r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'with ', 'async ', 'await ']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
@@ -178,14 +166,26 @@ def apricompile(code: str, name: str):
     for f, fill in enumerate(strings):
         altered = altered.replace(f'\x1a@{f}', fill)
 
-    # Libraries and execution
-    def returnCheck(value, instance, line, l):
-        if instance is not None and isinstance(value, instance):
-            return value
-        else:
-            error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
-
     # Setup
-    altered = f'\\\\ {name}.apr\n\n' + altered.replace(';\n', '\n')
+    altered = altered.replace(';\n', '\n')
 
     return Apricode(name, version=0.1, code=code, compiled=altered)
+
+if __name__ == '__main__':
+    if os.path.basename(sys.argv[0]) == 'Apricot.py':
+        if '-p' in sys.argv:
+            sys.argv[0] = sys.argv[sys.argv.index('-p') + 1]
+        else:
+            sys.exit()
+
+    with open(sys.argv[0], 'r', encoding='utf-8-sig') as f:
+        code = f.read()
+
+    codeclass = apricompile(code, os.path.basename(sys.argv[0]))
+
+    if '-e' in sys.argv:
+        codeclass.execute()
+
+    if '-w' in sys.argv:
+        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
+            f.write(codeclass.compiled)
