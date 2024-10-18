@@ -13,4 +13,7 @@ test: object = Item('a', 10);
 name: str = 'bob';
 age: str = '22';
 
+blambdala: null = null;
+log(blambdala);
+
 log(add(<int age>, 10));

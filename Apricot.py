@@ -59,9 +59,11 @@ with open('code.apr', 'r') as f:
 altered = code
 varTypes = {}
 strings = []
-direct = {'log(': 'print(', 'switch ': 'match ', 'this.': 'self.', 'throw ': 'raise ', 'catch ': 'except ', 'null': 'None', 'false': 'False', 'true': 'True', 'iter ': 'for', 'else if': 'elif',
-          'check ': 'assert ', 'next;': 'continue'}
-syntax = [*direct.values(), '__init__', 'lambda', 'nonlocal', 'with', 'async', 'await', 'del']
+direct = {r'(log\((.*)\);)': 'print(\x1a:1)', r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (\w+);)': 'except \x1a:1',
+          r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue'}
+syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'with ', 'async ', 'await ']
+syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
+directPhrase = {r'\bnull\b': 'None'}
 
 # Void buffer
 voidIO = StringIO
@@ -90,7 +92,13 @@ for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
 # Syntax keyword errors
 for l, line in enumerate(altered.splitlines()):
     for syn in syntax:
-        if syn in line:
+        if re.findall(syn, line):
+            error('SyntaxError', line, syn, l)
+
+# Syntax phrase errors
+for l, line in enumerate(altered.splitlines()):
+    for syn in syntaxPhrase:
+        if re.findall(syn, line):
             error('SyntaxError', line, syn, l)
 
 # Remove old type casting
@@ -149,7 +157,16 @@ for l, line in enumerate(altered.splitlines()):
 
 # Switch replacements
 for apr, py in direct.items():
-    altered = altered.replace(apr, py)
+    for found in re.findall(apr, altered):
+        repl = py
+        for p, part in enumerate(found):
+            repl = repl.replace(f'\x1a:{p}', part)
+
+        altered = altered.replace(found[0], repl)
+
+# Switch phrase replacements
+for apr, py in directPhrase.items():
+    altered = re.sub(apr, py, altered)
 
 # Type casting
 for cast in re.findall('(<(int|float|str|bool|list|tuple|dict|object) ?(.*)>)', altered):
@@ -165,5 +182,9 @@ def returnCheck(value, instance, line, l):
         return value
     else:
         error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
+
+# Setup
+false = False
+true = True
 
 exec(altered.replace(';', ''), globals())
