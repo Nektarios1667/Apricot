@@ -71,7 +71,7 @@ with open('code.apr', 'r') as f:
 
 # Variables
 altered = code
-names = []
+names = {}
 syntax = [r'def [a-zA-Z][a-zA-Z0-9_]*\([^)]*\)', r'def \([^)]*\)']
 
 # Void buffer
@@ -102,7 +102,7 @@ for func in functions:
 for l, line in enumerate(altered.splitlines()):
     variables = [list(found) for found in re.findall(r'((\w+): ?(int|float|str|bool|list|tuple|dict|var) ?= ?([^;]+))', line)]
     for variable in variables:
-        if variable[1] in names:
+        if variable[1] in names.keys():
             error('NameError', variable[1], line.strip(), l, f'Variable with name "{variable[1]}" already created')
 
         if variable[2] == 'var':
@@ -112,14 +112,16 @@ for l, line in enumerate(altered.splitlines()):
         if tyval(variable[3]) is not eval(variable[2]):
             error('TypeError', variable[0], line.strip(), l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
 
-        names.append(variable[1])
+        names[variable[1]] = tyval(variable[3])
 
 # Plain var declarations
 for l, line in enumerate(altered.splitlines()):
-    plainVars = re.findall(r'(?<!.)(\w+) ?= ?\S.*', line)
+    plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*))', line)
     for plain in plainVars:
-        if plain not in names:
-            error('SyntaxError', plain, line.strip(), l)
+        if plain[1] not in names.keys():
+            error('SyntaxError', plain[1], line.strip(), l)
+        elif tyval(plain[2][:-1]) is not names[plain[1]]:
+            error('TypeError', plain[0], line.strip(), l, f'Variable type defined as -{names[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
 
 # Wrong __init__
 wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
