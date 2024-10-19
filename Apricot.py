@@ -2,12 +2,12 @@ import linecache
 import re
 import sys
 import traceback
-
 from colored import Fore, Style
 from typing import Literal
 import os
 
 strings = []
+
 
 def inject(phrase: str):
     global strings
@@ -17,9 +17,11 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
+
 def error(error: str, line: str, description: str, row: int | Literal["N/A"], extra: str = ''):
     print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
     exit(-1)
+
 
 def returnCheck(value, instance, line, l):
     if instance is not None and isinstance(value, instance):
@@ -27,8 +29,10 @@ def returnCheck(value, instance, line, l):
     else:
         error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
 
+
 def log(*args):
     print('null' if args[0] is None else args[0], *args[1:])
+
 
 def funcUpType(l: int, paragraph: str):
     for line in paragraph.splitlines()[l::-1]:
@@ -36,6 +40,7 @@ def funcUpType(l: int, paragraph: str):
             # Find return type annotation and remove whitespace/colon
             funcType = eval(line.split('->')[1][:-1].strip())
             return funcType if funcType is None else funcType.__name__
+
 
 def tyval(value):
     global strings
@@ -57,6 +62,7 @@ def tyval(value):
         elif value.split('(')[0] in ['int', 'float', 'bool', 'str', 'list', 'tuple', 'object']:
             return eval(value.split('(')[0])
 
+
 def findLine(phrase: str, paragraph: str):
     lines = paragraph.splitlines()
     for i, line in enumerate(lines):
@@ -64,22 +70,25 @@ def findLine(phrase: str, paragraph: str):
             return i + 1
     return "N/A"
 
+
 def exception(e):
     global code
+    errors = {FileNotFoundError: 'DirectoryError', FileExistsError: 'DirectoryError', RecursionError: 'RecursiveError'}
 
     # Extract
     tb = traceback.extract_tb(e.__traceback__)[-1]
 
-    # Get the line number where the error occurred
-    l = tb.lineno
+    # Get the line number where the error occurred.
+    # Subtract 2 to exclude builtin "try:" on line 1 and for list indexes that start at 0
+    l = int(repr(e).split('(')[1].split(',')[0]) - 2
 
     # Add buffers to make lines match
     while '\n\n' in code:
         code = code.replace('\n\n', '\n//\n')
 
     # Get line and raise error
-    line = code.splitlines()[l - 2].strip()
-    error(type(e).__name__, line, line, l, extra=str(e).capitalize())
+    line = code.splitlines()[l]
+    error(errors.get(type(e), 'CompilationError'), line, line, l + 1, extra=str(e).capitalize())
 
 
 def load(file: str):
@@ -121,8 +130,7 @@ def apricompile(code: str):
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
-              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(\x1a:1)', r'(include (\w+);)': 'import \x1a:1',
-              r'(using (.*):)': 'with \x1a:1:'}
+              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1', r'(using (.*):)': 'with \x1a:1:'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None'}
@@ -158,7 +166,7 @@ def apricompile(code: str):
     for l, line in enumerate(altered.splitlines()):
         for syn in syntaxPhrase:
             if re.findall(syn, line):
-                error('SyntaxError', line, syn, l,)
+                error('SyntaxError', line, syn, l, )
 
     # Remove old type casting
     for l, line in enumerate(altered.splitlines()):
@@ -243,6 +251,7 @@ def apricompile(code: str):
     altered = altered.replace(';\n', '\n')
 
     return altered, env
+
 
 if __name__ == '__main__':
     file = os.path.basename(sys.argv[0])

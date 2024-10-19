@@ -1,4 +1,4 @@
-﻿import "functions.apl";
+﻿import functions;
 
 func int add(a, b):
     c = '100';
@@ -11,9 +11,10 @@ class Item:
         this.money = money;
 
 test: object = Item('a', 10);
+wrong: int = <int test.money>;
 
 name: str = 'bob';
 age: str = '22';
 ageInt: var = <int age>;
 
-log(add(1, 2));
+log(wrong);
