@@ -64,6 +64,24 @@ def findLine(phrase: str, paragraph: str):
             return i + 1
     return "N/A"
 
+def exception(e):
+    global code
+
+    # Extract
+    tb = traceback.extract_tb(e.__traceback__)[-1]
+
+    # Get the line number where the error occurred
+    l = tb.lineno
+
+    # Add buffers to make lines match
+    while '\n\n' in code:
+        code = code.replace('\n\n', '\n//\n')
+
+    # Get line and raise error
+    line = code.splitlines()[l - 2].strip()
+    error(type(e).__name__, line, line, l, extra=str(e).capitalize())
+
+
 def load(file: str):
     global env
 
@@ -98,13 +116,14 @@ def apricompile(code: str):
     global strings
 
     # Variables
-    env = {'log': log, 'returnCheck': returnCheck, 'load': load}
+    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'exception': exception}
     altered = code
     varTypes = {}
     strings = []
-    direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (\w+);)': 'except \x1a:1',
-              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(\x1a:1)', r'(include (\w+);)': 'import \x1a:1'}
-    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'with ', 'async ', 'await ']
+    direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
+              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(\x1a:1)', r'(include (\w+);)': 'import \x1a:1',
+              r'(using (.*):)': 'with \x1a:1:'}
+    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None'}
 
@@ -165,7 +184,7 @@ def apricompile(code: str):
 
             if variable[2] == 'var':
                 variable[2] = tyval(variable[3]).__name__
-                altered = altered.replace(variable[0], f'{variable[1]}: *{variable[2]} *= *{variable[3]}')
+                altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
 
             if tyval(variable[3]) is not eval(variable[2]):
                 error('TypeError', line.strip(), variable[0], l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
@@ -187,9 +206,9 @@ def apricompile(code: str):
         error('SyntaxError', f'func __init__{wrongInits[0][3]}', f'__init__', findLine('__init__', altered))
 
     # Fixing __init__
-    inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n+[\t ]*def \2(\([^)]*\)) *-> *(int|float|str|list|tuple|object|bool|None) *:)', altered)
+    inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None) *:)', altered)
     for init in inits:
-        altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n    def __init__{init[3]} -> {init[4] if init[4] != "null" else "None"}:')
+        altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self, {init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
 
     # Final return checks
     for l, line in enumerate(altered.splitlines()):
@@ -216,6 +235,9 @@ def apricompile(code: str):
     for f, fill in enumerate(strings):
         altered = altered.replace(f'\x1a@{f}', fill)
 
+    # Automatic error handling wrap
+    altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
+
     # Setup
     altered = altered + '\n' if altered[-1] != '\n' else ''
     altered = altered.replace(';\n', '\n')
@@ -235,28 +257,7 @@ if __name__ == '__main__':
 
     compiled, env = apricompile(code)
     if '-e' in sys.argv:
-        try:
-            exec(compiled, env)
-
-        # Builtin exceptions
-        except Exception as e:
-            # Extract
-            extracted = sys.exc_info()[2]
-            tb = traceback.extract_tb(extracted)[-1]
-
-            # Get the line number where the error occurred
-            l = tb.lineno
-
-            # Get line code
-            line = compiled.splitlines()[l - 1]
-
-            # Add buffers to make lines match
-            while '\n\n' in compiled:
-                compiled = compiled.replace('\n\n', '\n//\n')
-
-            # Get line and raise error
-            line = compiled.splitlines()[l - 1]
-            error(type(e).__name__, line, line, l, extra=str(e).capitalize())
+        exec(compiled, env)
 
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
