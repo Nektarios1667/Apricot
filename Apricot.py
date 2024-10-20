@@ -3,6 +3,8 @@ import linecache
 import re
 import sys
 import traceback
+import types
+
 from colored import Fore, Style
 from typing import Literal
 import os
@@ -23,7 +25,7 @@ def getline(l: int):
     return spaced.splitlines()[l]
 
 def error(error: str, description: str, l: int, extra: str = ''):
-    line = getline(l - 1)
+    line = getline(l - 1) if l > 0 else description
     print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
     exit(-1)
 
@@ -84,7 +86,15 @@ def exception(e):
 def load(file: str):
     global env
 
+    # Checking file type
+    if not file.endswith('.apl'):
+        error('LibraryError', file, -1, extra='Expected file with .apl extension')
+    if not os.path.exists(file):
+        error('LibraryError', file, -1, extra='File not found')
+
     # Reading
+    name = os.path.basename(file)[:-4]
+    module = types.ModuleType(name)
     with open(file, 'rb') as f:
         code = f.read().decode('utf-8', errors='ignore')
 
@@ -107,10 +117,10 @@ def load(file: str):
 
     # Clean globals
     for var, val in list(importing.items()).copy():
-        if not callable(val):
-            importing.pop(var)
+        if callable(val):
+            setattr(module, var, val)
 
-    env.update(importing)
+    env.update({name: module})
 
 def variable(name: str, value, l: int, varType: str = ''):
     global env, varTypes
