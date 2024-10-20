@@ -122,15 +122,15 @@ def variable(name: str, value, l: int, varType: str = ''):
             env[name] = eval(value, env)
             varTypes[name] = varType
         elif name in varTypes:
-            error('VariableError', name, l, extra=f'Variable "{name}" is already created')
+            error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created')
         else:
-            error('TypeError', str(value), l, extra=f'Variable type defined as -{varType.__name__}- but value is -{tyval(value).__name__}-')
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varType.__name__}- but value is -{tyval(value).__name__}-')
     else:
         if name not in varTypes:
-            error('VariableError', name, l, extra=f'Variable "{name}" has not yet been created')
+            error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
             env[name] = eval(value, env)
         elif not isinstance(eval(value, env), varTypes[name]):
-            error('TypeError', str(value), l, extra=f'Variable type defined as -{varTypes[name].__name__}- but value is -{tyval(value).__name__}-')
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varTypes[name].__name__}- but value is -{tyval(value).__name__}-')
         else:
             env[name] = eval(value, env)
 
