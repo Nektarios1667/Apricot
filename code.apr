@@ -11,7 +11,7 @@ class Item:
         this.money = money;
 
 test: Item = Item('a', 10);
-wrong: int = <int test.money>;
+wrong: int = test.money;
 
 name: str = 'bob';
 age: str = '22';

@@ -67,7 +67,7 @@ def findLine(phrase: str, paragraph: str):
 
 def exception(e):
     global code
-    errors = {FileNotFoundError: 'DirectoryError', FileExistsError: 'DirectoryError', RecursionError: 'RecursiveError'}
+    errors = {FileNotFoundError: 'DirectoryError', FileExistsError: 'DirectoryError', RecursionError: 'RecursiveError', AssertionError: 'CheckError'}
 
     # Extract
     tb = traceback.extract_tb(e.__traceback__)[-1]
@@ -257,7 +257,7 @@ def apricompile(code: str):
         altered = altered.replace(f'\x1a@{f}', fill)
 
     # Automatic error handling wrap
-    # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
+    altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
     # Setup
     altered = altered + '\n' if altered[-1] != '\n' else ''
