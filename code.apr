@@ -10,11 +10,11 @@ class Item:
         this.name = name;
         this.money = money;
 
-test: object = Item('a', 10);
+test: Item = Item('a', 10);
 wrong: int = <int test.money>;
 
 name: str = 'bob';
 age: str = '22';
-ageInt: var = <int age>;
+ageInt: int = <int age>;
 
 log(wrong);
