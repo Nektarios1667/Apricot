@@ -99,15 +99,17 @@ def load(file: str):
         code = f.read().decode('utf-8', errors='ignore')
 
     # Checking if the code is valid
-    allowed = ['$', '$ ', '    ', '\t', 'func', 'class']
+    allowed = ['$', '\t', 'func', 'class', '\n', '    ', '', r'\\']
     for l, line in enumerate(code.splitlines()):
         correct = False
 
         for allow in allowed:
             if line.startswith(allow):
                 correct = True
+                break
+
         if not correct:
-            error('LibararyError', line, line, l)
+            error('LibraryError', line, line, l)
 
     # Running
     compiled, importing = apricompile(code)
