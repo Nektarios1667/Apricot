@@ -17,9 +17,16 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
+def getline(l: int):
+    spaced = code
+    while '\n\n' in spaced:
+        spaced = spaced.replace('\n\n', '\n//\n')
 
-def error(error: str, line: str, description: str, row: int | Literal["N/A"], extra: str = ''):
-    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {row}\n{extra}{Style.RESET}')
+    return spaced.splitlines()[l]
+
+def error(error: str, description: str, l: int, extra: str = ''):
+    line = getline(l)
+    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
     exit(-1)
 
 
@@ -27,7 +34,7 @@ def returnCheck(value, instance, line, l):
     if instance is not None and isinstance(value, instance):
         return value
     else:
-        error('TypeError', line.strip(), value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
+        error('TypeError', value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
 
 
 def log(*args):
@@ -82,13 +89,9 @@ def exception(e):
     # Subtract 2 to exclude builtin "try:" on line 1 and for list indexes that start at 0
     l = int(repr(e).split('(')[1].split(',')[0]) - 2
 
-    # Add buffers to make lines match
-    while '\n\n' in code:
-        code = code.replace('\n\n', '\n//\n')
-
-    # Get line and raise error
-    line = code.splitlines()[l]
-    error(errors.get(type(e), 'CompilationError'), line, line, l + 1, extra=str(e).capitalize())
+    # Get line
+    line = getline(l)
+    error(errors.get(type(e), 'CompilationError'), line, l + 1, extra=str(e).capitalize())
 
 
 def load(file: str):
@@ -109,7 +112,7 @@ def load(file: str):
                 break
 
         if not correct:
-            error('LibraryError', line, line, l)
+            error('LibraryError', line, l)
 
     # Running
     compiled, importing = apricompile(code)
@@ -151,7 +154,7 @@ def apricompile(code: str):
             continue
 
         if line[-1] not in [':', ';']:
-            error('LineError', line.strip(), line.strip(), l)
+            error('LineError', line.strip(), l)
 
     # String replacements
     for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
@@ -162,19 +165,19 @@ def apricompile(code: str):
     for l, line in enumerate(altered.splitlines()):
         for syn in syntax:
             if re.findall(syn, line):
-                error('SyntaxError', line, syn, l)
+                error('SyntaxError', syn, l)
 
     # Syntax phrase errors
     for l, line in enumerate(altered.splitlines()):
         for syn in syntaxPhrase:
             if re.findall(syn, line):
-                error('SyntaxError', line, syn, l, )
+                error('SyntaxError', syn, l, )
 
     # Remove old type casting
     for l, line in enumerate(altered.splitlines()):
         wrongCasts = re.findall(r'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
         if wrongCasts:
-            error('SyntaxError', wrongCasts[0][0], line, l)
+            error('SyntaxError', wrongCasts[0][0], l)
 
     # Type casting
     for cast in re.findall('(<(int|float|str|bool|list|tuple|dict|object) ?(.*)>)', altered):
@@ -190,14 +193,14 @@ def apricompile(code: str):
         variables = [list(found) for found in re.findall(r'((\w+): *(int|float|str|bool|list|tuple|dict|var|object) *= *([^;]+))', line)]
         for variable in variables:
             if variable[1] in varTypes.keys():
-                error('NameError', line.strip(), variable[1], l, f'Variable with name "{variable[1]}" already created')
+                error('NameError', variable[1], l, f'Variable with name "{variable[1]}" already created')
 
             if variable[2] == 'var':
                 variable[2] = tyval(variable[3]).__name__
                 altered = altered.replace(variable[0], f'{variable[1]}: {variable[2]} = {variable[3]}')
 
             if tyval(variable[3]) is not eval(variable[2]):
-                error('TypeError', line.strip(), variable[0], l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
+                error('TypeError', variable[0], l, f'Variable type defined as -{variable[2]}- but value is -{tyval(variable[3]).__name__}-')
 
             varTypes[variable[1]] = tyval(variable[3])
 
@@ -206,14 +209,14 @@ def apricompile(code: str):
         plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*))', line)
         for plain in plainVars:
             if plain[1] not in varTypes.keys():
-                error('VariableError', line.strip(), plain[1], l, 'Variable assignment before creation')
+                error('VariableError', plain[1], l, 'Variable assignment before creation')
             elif tyval(plain[2][:-1]) is not varTypes[plain[1]]:
-                error('TypeError', line.strip(), plain[0], l, f'Variable type defined as -{varTypes[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
+                error('TypeError', plain[0], l, f'Variable type defined as -{varTypes[plain[1]].__name__}- but value is -{tyval(plain[2][:-1]).__name__}-')
 
     # Wrong __init__
     wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
     if wrongInits:
-        error('SyntaxError', f'func __init__{wrongInits[0][3]}', f'__init__', findLine('__init__', altered))
+        error('SyntaxError', f'__init__', findLine('__init__', altered))
 
     # Fixing __init__
     inits = re.findall(r'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None) *:)', altered)
