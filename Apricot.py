@@ -1,3 +1,4 @@
+import inspect
 import linecache
 import re
 import sys
@@ -7,6 +8,7 @@ from typing import Literal
 import os
 
 strings = []
+varTypes = {}
 
 
 def inject(phrase: str):
@@ -25,12 +27,12 @@ def getline(l: int):
     return spaced.splitlines()[l]
 
 def error(error: str, description: str, l: int, extra: str = ''):
-    line = getline(l)
+    line = getline(l - 1)
     print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
     exit(-1)
 
 
-def returnCheck(value, instance, line, l):
+def returnCheck(value, instance, l):
     if instance is not None and isinstance(value, instance):
         return value
     else:
@@ -87,7 +89,7 @@ def exception(e):
 
     # Get the line number where the error occurred.
     # Subtract 2 to exclude builtin "try:" on line 1 and for list indexes that start at 0
-    l = int(repr(e).split('(')[1].split(',')[0]) - 2
+    l = tb.lineno - 2
 
     # Get line
     line = getline(l)
