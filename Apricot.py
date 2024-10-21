@@ -179,7 +179,7 @@ def apricompile(code: str):
             continue
 
         if line[-1] not in [':', ';']:
-            error('LineError', line.strip(), l)
+            error('LineError', line.strip(), l + 1)
 
     # String replacements
     for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
