@@ -26,7 +26,7 @@ def getline(l: int):
 
 def error(error: str, description: str, l: int, extra: str = ''):
     line = getline(l - 1) if l > 0 else description
-    print(f'{Fore.RED}{error}: "{inject(line)}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
+    print(f'{Fore.RED}{error}: "{inject(line.strip())}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
     exit(-1)
 
 
@@ -80,7 +80,7 @@ def exception(e):
 
     # Get line
     line = getline(l)
-    error(errors.get(type(e), 'CompilationError'), line, l + 1, extra=str(e).capitalize())
+    error(errors.get(type(e), type(e).__name__), line, l + 1, extra=str(e).capitalize())
 
 
 def load(file: str):
@@ -159,10 +159,10 @@ def apricompile(code: str):
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
-              r'(iter +(\w+) +in +([^;]+);)': 'for \x1a:1 in \x1a:2:', 'else if': 'elif', 'next;': 'continue', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1', r'(using (.*):)': 'with \x1a:1:'}
+              r'(iter (\w[\w\d_]*) in (.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1', r'(using (.*):)': 'with \x1a:1:'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
-    directPhrase = {r'\bnull\b': 'None'}
+    directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
     classes = []
 
     # Comments
