@@ -29,10 +29,18 @@ def error(error: str, description: str, l: int, extra: str = ''):
 
 
 def returnCheck(value, instance, l):
-    if instance is not None and isinstance(value, instance):
+    # Convert None to NoneType
+    instance = instance if instance is not None else types.NoneType
+
+    # Checking
+    if isinstance(value, instance):
         return value
     else:
-        error('TypeError', value, l, f'Return type defined as -{"null" if instance is None else instance.__name__}- but value is -{type(value).__name__}-')
+        # Used for converting None to null
+        valueStr = str(value) if value is not None else 'null'
+        valueType = type(value).__name__ if value is not None else 'null'
+
+        error('TypeError', valueStr, l + 1, f'Return type defined as -{"null" if instance is types.NoneType else instance.__name__}- but value is -{valueType}-')
 
 
 def log(*args):

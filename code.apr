@@ -11,6 +11,8 @@ class Item:
         this.name = name;
         this.money = money;
 
+        return null;
+
 test: Item = Item('a', 10);
 wrong: int = test.money;
 
