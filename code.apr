@@ -7,7 +7,7 @@ func int add(a, b):
     return c;
 
 class Item:
-    func null Item(name, money):
+    func Item(name, money):
         this.name = name;
         this.money = money;
 
@@ -20,7 +20,7 @@ ageInt: int = f.multiAdd(1, 2, 3);
 
 assert ageInt == 6;
 
-iter x in range(10):
+for x : range(10):
     if x == 10:
         next;
     else if x == 9:

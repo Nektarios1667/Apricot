@@ -159,8 +159,9 @@ def apricompile(code: str):
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
-              r'(iter (\w[\w\d_]*) in (.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1', r'(using (.*):)': 'with \x1a:1:'}
-    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*']
+              r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
+              r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)'}
+    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
     classes = []
@@ -189,14 +190,16 @@ def apricompile(code: str):
     # Syntax keyword errors
     for l, line in enumerate(altered.splitlines()):
         for syn in syntax:
-            if re.findall(syn, line):
-                error('SyntaxError', syn, l)
+            found = re.findall(syn, line)
+            if found:
+                error('SyntaxError', found[0], l + 1)
 
     # Syntax phrase errors
     for l, line in enumerate(altered.splitlines()):
         for syn in syntaxPhrase:
-            if re.findall(syn, line):
-                error('SyntaxError', syn, l, )
+            found = re.findall(syn, line)
+            if found:
+                error('SyntaxError', found[0], l + 1)
 
     # Pull classes to use for rest of code
     classFinds = re.findall(r'class (\w+)(?:\(.*\))? ?:', altered)
@@ -213,6 +216,16 @@ def apricompile(code: str):
     # Type casting
     for cast in re.findall(rf'(<(int|float|str|bool|list|tuple|dict|object{classNames}) ?(.*)>)', altered):
         altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
+
+    # Wrong __init__ with return type specified
+    wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', altered)
+    if wrongInits:
+        error('SyntaxError', wrongInits[0][4], findLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
+
+    # Correct __init__ adding return type
+    replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', altered)
+    for repl in replInits:
+        altered = altered.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
 
     # Functions
     functions = re.findall(rf'(func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
@@ -231,12 +244,12 @@ def apricompile(code: str):
         for plain in plainVars:
             altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l})')
 
-    # Wrong __init__
+    # __init__ keyword errors
     wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
     if wrongInits:
         error('SyntaxError', f'__init__', findLine('__init__', altered))
 
-    # Fixing __init__
+    # Replacing constructor with __init__
     inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
     for init in inits:
         altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self, {init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
