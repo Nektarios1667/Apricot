@@ -23,9 +23,9 @@ def getline(l: int):
 
 def error(error: str, description: str, l: int, extra: str = ''):
     line = getline(l - 1) if l > 0 else description
-    print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description)}" @ line {l}\n{extra}{C.RESET}')
+    print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
     input('Press enter to exit.')
-    exit(-1)
+    sys.exit(-1)
 
 
 def returnCheck(value, instance, l):
@@ -83,21 +83,23 @@ def exception(e):
 
 def load(file: str):
     global env
+    path = '\\'.join(sys.argv[0].split('\\')[:-1])
 
     # Checking file type
     if not file.endswith('.apl'):
         error('LibraryError', file, -1, extra='Expected file with .apl extension')
-    if not os.path.exists(file):
+    if not os.path.exists(f'{path}\\{file}'):
+        print(f'{sys.argv[0]}\\{file}')
         error('LibraryError', file, -1, extra='File not found')
 
     # Reading
     name = os.path.basename(file)[:-4]
     module = types.ModuleType(name)
-    with open(file, 'rb') as f:
+    with open(f'{path}\\{file}', 'rb') as f:
         code = f.read().decode('utf-8', errors='ignore')
 
     # Checking if the code is valid
-    allowed = ['$', '\t', 'func', 'class', '\n', '    ', '', r'\\']
+    allowed = ['\t', 'func', 'class', '\n', '    ', '', r'\\', 'using', 'import']
     for l, line in enumerate(code.splitlines()):
         correct = False
 
@@ -277,11 +279,10 @@ def apricompile(code: str):
 if __name__ == '__main__':
     # Get file path
     file = os.path.basename(sys.argv[0])
-    if file == 'Apricot.py':
-        if '-p' in sys.argv:
-            sys.argv[0] = sys.argv[sys.argv.index('-p') + 1]
-        else:
-            sys.exit()
+    if '-p' in sys.argv:
+        sys.argv[0] = sys.argv[sys.argv.index('-p') + 1]
+    else:
+        sys.exit()
 
     # Global var setup
     strings = []
@@ -304,3 +305,6 @@ if __name__ == '__main__':
             f.write(compiled)
 
     input('Press enter to exit.')
+
+# Executable command: pyinstaller --onefile --icon="C:\Users\nekta\Downloads\apricot.png" --distpath="C:\Program Files\Apricot" Apricot.py
+# Executable run: Apricot -p C:\Users\nekta\PycharmProjects\Apricot\code.apr -e
