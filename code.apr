@@ -1,4 +1,4 @@
-﻿import functions;
+import functions;
 f: object = functions;
 
 func int add(a, b):

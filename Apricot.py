@@ -1,13 +1,10 @@
-import inspect
-import linecache
 import re
 import sys
 import traceback
 import types
-
-from colored import Fore, Style
-from typing import Literal
+from Colors import ColorText as C
 import os
+
 
 def inject(phrase: str):
     global strings
@@ -26,7 +23,8 @@ def getline(l: int):
 
 def error(error: str, description: str, l: int, extra: str = ''):
     line = getline(l - 1) if l > 0 else description
-    print(f'{Fore.RED}{error}: "{inject(line.strip())}" - "{inject(description)}" @ line {l}\n{extra}{Style.RESET}')
+    print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description)}" @ line {l}\n{extra}{C.RESET}')
+    input('Press enter to exit.')
     exit(-1)
 
 
@@ -160,7 +158,7 @@ def apricompile(code: str):
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
               r'(iter (\w[\w\d_]*) in (.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1', r'(using (.*):)': 'with \x1a:1:'}
-    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ']
+    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
     classes = []
@@ -291,8 +289,9 @@ if __name__ == '__main__':
     classes = []
 
     # Read and compile the code file
-    with open(sys.argv[0], 'r', encoding='utf-8-sig') as f:
+    with open(sys.argv[0], 'r', encoding='utf-8') as f:
         code = f.read()
+
     compiled, env = apricompile(code)
 
     # Execute the compiled code
@@ -303,3 +302,5 @@ if __name__ == '__main__':
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
             f.write(compiled)
+
+    input('Press enter to exit.')
