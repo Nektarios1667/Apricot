@@ -4,6 +4,7 @@ import traceback
 import types
 from Colors import ColorText as C
 import os
+from Pointers import *
 
 
 def inject(phrase: str):
@@ -76,6 +77,10 @@ def findLine(phrase: str, paragraph: str):
 def exception(e):
     global code
     errors = {FileNotFoundError: 'DirectoryError', FileExistsError: 'DirectoryError', RecursionError: 'RecursiveError', AssertionError: 'CheckError'}
+
+    # Ignore keyboard interrupts
+    if type(e) is KeyboardInterrupt:
+        return
 
     # Extract
     tb = traceback.extract_tb(e.__traceback__)[-1]
@@ -154,7 +159,7 @@ def variable(name: str, value, l: int, varType: str = ''):
 
 def rClasses():
     global env, classes
-    phrase = f'{"|" if classes else ""}{"|".join(classes)}'
+    phrase = f'|pointer{"|".join(classes)}'
     return phrase
 
 
@@ -162,13 +167,13 @@ def apricompile(code: str):
     global strings, variable, varTypes
 
     # Variables
-    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'exception': exception, 'variable': variable}
+    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'exception': exception, 'variable': variable, 'pointer': Pointer}
     altered = code
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
-              r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)'}
+              r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
@@ -192,7 +197,7 @@ def apricompile(code: str):
 
     # String replacements
     for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
-        altered = altered.replace(string[0], f'\x1a@{s}')
+        altered = altered.replace(string[0], f'\x1a={s}')
         strings.append(string[0])
 
     # Syntax keyword errors
@@ -242,13 +247,13 @@ def apricompile(code: str):
 
     # Variable types
     for l, line in enumerate(altered.splitlines()):
-        variables = [list(found) for found in re.findall(rf'((\w+): *(int|float|str|bool|list|tuple|dict|object{classNames}) *= *([^;]+))', line)]
+        variables = [list(found) for found in re.findall(rf'((\w+): *(int|float|str|bool|list|tuple|dict|object{classNames}) *= *([^;]+);)', line)]
         for variable in variables:
             altered = altered.replace(variable[0], f'variable("{variable[1]}", "{variable[3]}", {l}, "{variable[2]}")')
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):
-        plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*))', line)
+        plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*);)', line)
         for plain in plainVars:
             altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l})')
 
@@ -285,7 +290,7 @@ def apricompile(code: str):
 
     # Inject strings
     for f, fill in enumerate(strings):
-        altered = altered.replace(f'\x1a@{f}', fill)
+        altered = altered.replace(f'\x1a={f}', fill)
 
     # Automatic error handling wrap
     altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'

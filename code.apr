@@ -18,9 +18,9 @@ wrong: int = test.money;
 
 name: str = 'bob';
 age: str = '22';
-ageInt: int = f.multiAdd(1, 2, 3);
-
-assert ageInt == 6;
+point: pointer = @age;
+age = '23';
+log(^point);
 
 for x : range(10):
     if x == 10:
