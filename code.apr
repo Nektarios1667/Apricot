@@ -13,12 +13,12 @@ class Item:
 
         return null;
 
-test: Item = Item('a', 10);
-wrong: int = test.money;
+test Item = Item('a', 10);
+wrong int = test.money;
 
-name: str = 'bob';
-age: str = '22';
-point: pointer = @age;
+name str = 'bob';
+age str = '22';
+point pointer = @age;
 age = '23';
 log(^point);
 

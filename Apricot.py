@@ -157,12 +157,6 @@ def variable(name: str, value, l: int, varType: str = ''):
         else:
             env[name] = eval(value, env)
 
-def rClasses():
-    global env, classes
-    phrase = f'|pointer{"|".join(classes)}'
-    return phrase
-
-
 def apricompile(code: str):
     global strings, variable, varTypes
 
@@ -177,7 +171,6 @@ def apricompile(code: str):
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
-    classes = []
 
     # Comments
     for comm in re.findall(r'\\\\.*', altered):
@@ -215,10 +208,9 @@ def apricompile(code: str):
                 error('SyntaxError', found[0], l + 1)
 
     # Pull classes to use for rest of code
-    classFinds = re.findall(r'class (\w+)(?:\(.*\))? ?:', altered)
-    for find in classFinds:
-        classes.append(find[0])
-    classNames = rClasses()
+    classes = ['pointer']
+    classes.extend(re.findall(r'class (\w+)(?:\(.*\))? ?:', altered))
+    classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
     # Remove old type casting
     for l, line in enumerate(altered.splitlines()):
@@ -247,13 +239,13 @@ def apricompile(code: str):
 
     # Variable types
     for l, line in enumerate(altered.splitlines()):
-        variables = [list(found) for found in re.findall(rf'((\w+): *(int|float|str|bool|list|tuple|dict|object{classNames}) *= *([^;]+);)', line)]
+        variables = [list(found) for found in re.findall(rf'((\w+) +(int|float|str|bool|list|tuple|dict|object{classNames}) *= *([^;]+);)', line)]
         for variable in variables:
             altered = altered.replace(variable[0], f'variable("{variable[1]}", "{variable[3]}", {l}, "{variable[2]}")')
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):
-        plainVars = re.findall(r'((?<!.)(\w+) ?= ?(\S*);)', line)
+        plainVars = re.findall(r'((?<!.)(\w+) *= *(\S*);)', line)
         for plain in plainVars:
             altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l})')
 
