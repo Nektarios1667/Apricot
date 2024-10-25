@@ -168,6 +168,7 @@ def apricompile(code: str):
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
               r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
+              # r'((\w+): (*\w[^,]*)(?=[),]))': '(\x1a:2: \x1a:1)'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
@@ -208,7 +209,7 @@ def apricompile(code: str):
                 error('SyntaxError', found[0], l + 1)
 
     # Pull classes to use for rest of code
-    classes = ['pointer']
+    classes = ['pointer', 'function']
     classes.extend(re.findall(r'class (\w+)(?:\(.*\))? ?:', altered))
     classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
@@ -269,12 +270,13 @@ def apricompile(code: str):
 
     # Switch replacements
     for apr, py in direct.items():
-        for found in re.findall(apr, altered):
-            repl = py
-            for p, part in enumerate(found):
-                repl = repl.replace(f'\x1a:{p}', part)
+        while re.findall(apr, altered):
+            for found in re.findall(apr, altered):
+                repl = py
+                for p, part in enumerate(found):
+                    repl = repl.replace(f'\x1a:{p}', part)
 
-            altered = altered.replace(found[0], repl)
+                altered = altered.replace(found[0], repl)
 
     # Switch phrase replacements
     for apr, py in directPhrase.items():

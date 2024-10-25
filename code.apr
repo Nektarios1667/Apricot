@@ -2,9 +2,7 @@ import functions;
 f: object = functions;
 
 func int add(a, b):
-    c = '100';
-    c = <int c>;
-    return c;
+    return a + b;
 
 class Item:
     func Item(name, money):
@@ -19,8 +17,11 @@ int: money = test.money;
 str: name = 'bob';
 int: age = <int '22'>;
 pointer: point = @age;
+pointer: layered = @point;
 age = 23;
-log(^point);
+
+log(^^layered);
+log(add(1, 2));
 
 for x : range(10):
     if x == 10:
