@@ -239,9 +239,9 @@ def apricompile(code: str):
 
     # Variable types
     for l, line in enumerate(altered.splitlines()):
-        variables = [list(found) for found in re.findall(rf'((\w+) +(int|float|str|bool|list|tuple|dict|object{classNames}) *= *([^;]+);)', line)]
+        variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
         for variable in variables:
-            altered = altered.replace(variable[0], f'variable("{variable[1]}", "{variable[3]}", {l}, "{variable[2]}")')
+            altered = altered.replace(variable[0], f'variable("{variable[2]}", "{variable[3]}", {l}, "{variable[1]}")')
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):

@@ -13,13 +13,13 @@ class Item:
 
         return null;
 
-test Item = Item('a', 10);
-wrong int = test.money;
+Item: test = Item('a', 10);
+int: money = test.money;
 
-name str = 'bob';
-age str = '22';
-point pointer = @age;
-age = '23';
+str: name = 'bob';
+int: age = <int '22'>;
+pointer: point = @age;
+age = 23;
 log(^point);
 
 for x : range(10):
@@ -27,3 +27,4 @@ for x : range(10):
         next;
     else if x == 9:
         log(x);
+
