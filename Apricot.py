@@ -5,7 +5,7 @@ import types
 from Colors import ColorText as C
 import os
 from Pointers import *
-
+from Library import *
 
 def inject(phrase: str):
     global strings
@@ -45,7 +45,8 @@ def returnCheck(value, instance, l):
 
 
 def log(*args):
-    print('null' if args[0] is None else args[0], *args[1:])
+    if len(args) > 0:
+        print('null' if args[0] is None else args[0], *args[1:])
 
 
 def funcUpType(l: int, paragraph: str):
@@ -96,19 +97,19 @@ def exception(e):
 
 def load(file: str):
     global env
-    path = '\\'.join(sys.argv[0].split('\\')[:-1])
 
     # Checking file type
     if not file.endswith('.apl'):
         error('LibraryError', file, -1, extra='Expected file with .apl extension')
-    if not os.path.exists(f'{path}\\{file}'):
-        print(f'{sys.argv[0]}\\{file}')
+    if not os.path.exists(f'{folder}/{file}'):
         error('LibraryError', file, -1, extra='File not found')
 
-    # Reading
+    # Module
     name = os.path.basename(file)[:-4]
-    module = types.ModuleType(name)
-    with open(f'{path}\\{file}', 'rb') as f:
+    library = Library(f'{folder}/{file}')
+
+    # Reading
+    with open(f'{folder}/{file}', 'rb') as f:
         code = f.read().decode('utf-8', errors='ignore')
 
     # Checking if the code is valid
@@ -129,11 +130,11 @@ def load(file: str):
     exec(compiled, importing)
 
     # Clean globals
-    for var, val in list(importing.items()).copy():
+    for var, val in dict(importing).items():
         if callable(val):
-            setattr(module, var, val)
+            setattr(library, var, val)
 
-    env.update({name: module})
+    env.update({name: library})
 
 def variable(name: str, value, l: int, varType: str = ''):
     global env, varTypes
@@ -170,6 +171,7 @@ def apricompile(code: str):
               r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
               # r'((\w+): (*\w[^,]*)(?=[),]))': '(\x1a:2: \x1a:1)'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
+    nameErrors = [r'globals\(\)', r'locals\(\)']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
 
@@ -207,6 +209,13 @@ def apricompile(code: str):
             found = re.findall(syn, line)
             if found:
                 error('SyntaxError', found[0], l + 1)
+
+    # Name errors
+    for l, line in enumerate(altered.splitlines()):
+        for syn in nameErrors:
+            found = re.findall(syn, line)
+            if found:
+                error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.')
 
     # Pull classes to use for rest of code
     classes = ['pointer', 'function']
@@ -298,11 +307,9 @@ def apricompile(code: str):
 
 if __name__ == '__main__':
     # Get file path
-    file = os.path.basename(sys.argv[0])
-    if '-p' in sys.argv:
-        sys.argv[0] = sys.argv[sys.argv.index('-p') + 1]
-    else:
-        sys.exit()
+    # Apricot py/exe, filepath of .apr, flags such as -e or -w, filepath of compiled file for -w
+    filepath = sys.argv[1]
+    folder = os.path.dirname(sys.argv[1])
 
     # Global var setup
     strings = []
@@ -310,7 +317,7 @@ if __name__ == '__main__':
     classes = []
 
     # Read and compile the code file
-    with open(sys.argv[0], 'r', encoding='utf-8') as f:
+    with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
 
     compiled, env = apricompile(code)

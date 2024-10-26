@@ -21,7 +21,8 @@ pointer: layered = @point;
 age = 23;
 
 log(^^layered);
-log(add(1, 2));
+log(f.multiAdd(1, 2, 3));
+
 
 for x : range(10):
     if x == 10:
