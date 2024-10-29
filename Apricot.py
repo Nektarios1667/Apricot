@@ -3,6 +3,10 @@ import sys
 import time
 import traceback
 import types
+from typing import Literal
+
+from numba import jit
+
 from Colors import ColorText as C
 import os
 from Pointers import *
@@ -34,9 +38,27 @@ def getline(l: int, phrase: str):
 
     return spaced.splitlines()[l - 1]
 
+def fime(time: float | int, units: Literal['ms', 's', 'm', 'h', 'd']):
+    factors = {'ms': .001, 's': 1, 'm': 60, 'h': 3_600, 'd': 86_400}
+
+    seconds = time * factors[units]
+    minutes = seconds/60
+    hours = minutes/60
+    days = hours/24
+    if seconds < .1:
+        return f'{seconds*1000:.1f} ms'
+    elif minutes > 4:
+        return f'{minutes:.1f} m'
+    elif hours > 4:
+        return f'{hours:.1f} h'
+    elif days >= 1:
+        return f'{days:.1f} d'
+    else:
+        return f'{seconds:.1f} s'
+
 def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
     # If line isn't specified find automatically
-    line = line if line else getline(l - 1, code)
+    line = line if line else getline(l, code)
 
     # Printing and closing
     print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
@@ -326,7 +348,7 @@ def apricompile(code: str):
     # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
     # Setup
-    altered = altered + '\n' if altered[-1] != '\n' else ''
+    altered = altered + '\n' if altered[-1] != '\n' else altered
     altered = altered.replace(';\n', '\n')
 
     return altered, env
@@ -375,13 +397,13 @@ if __name__ == '__main__':
     # Compile and report time
     start = time.time()
     compiled, env = apricompile(code)
-    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {fime(time.time() - start, "s")}\n{C.RESET}')
 
     # Execute the compiled code
     if '-e' in sys.argv:
         start = time.time()
         run(compiled, env, code)
-        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {fime(time.time() - start, "s")}\n{C.RESET}')
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
