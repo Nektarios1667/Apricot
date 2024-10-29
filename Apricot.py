@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 import traceback
 import types
 from Colors import ColorText as C
@@ -8,6 +9,11 @@ from Pointers import *
 from Library import *
 
 def inject(phrase: str):
+    """
+    Injects all strings into phrase by replacing \x1a@(#) with the index in the string list.
+    :param phrase:
+    :return:
+    """
     global strings
 
     phrase = str(phrase)
@@ -15,15 +21,24 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
-def getline(l: int):
-    spaced = code
+def getline(l: int, phrase: str):
+    """
+    Returns the line of the code based on l. Note: the line numbers start at 1
+    :param phrase:
+    :param l:
+    :return:
+    """
+    spaced = phrase
     while '\n\n' in spaced:
         spaced = spaced.replace('\n\n', '\n//\n')
 
-    return spaced.splitlines()[l]
+    return spaced.splitlines()[l - 1]
 
-def error(error: str, description: str, l: int, extra: str = ''):
-    line = getline(l - 1) if l > 0 else description
+def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
+    # If line isn't specified find automatically
+    line = line if line else getline(l - 1, code)
+
+    # Printing and closing
     print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
     input('Press enter to exit.')
     sys.exit(-1)
@@ -58,6 +73,11 @@ def funcUpType(l: int, paragraph: str):
 
 
 def tyval(value):
+    """
+    Returns the type of the evaluated string.
+    :param value:
+    :return:
+    """
     global strings, env
 
     if value[0] == '\x1a':
@@ -68,6 +88,12 @@ def tyval(value):
     return type(eval(value, env))
 
 def findLine(phrase: str, paragraph: str):
+    """
+    Finds the line number of the phrase in the given paragraph. Note: the line numbers start at 1
+    :param phrase:
+    :param paragraph:
+    :return:
+    """
     lines = paragraph.splitlines()
     for i, line in enumerate(lines):
         if phrase in line:
@@ -75,27 +101,12 @@ def findLine(phrase: str, paragraph: str):
     return "N/A"
 
 
-def exception(e):
-    global code
-    errors = {FileNotFoundError: 'DirectoryError', FileExistsError: 'DirectoryError', RecursionError: 'RecursiveError', AssertionError: 'CheckError'}
-
-    # Ignore keyboard interrupts
-    if type(e) is KeyboardInterrupt:
-        return
-
-    # Extract
-    tb = traceback.extract_tb(e.__traceback__)[-1]
-
-    # Get the line number where the error occurred.
-    # Subtract 2 to exclude builtin "try:" on line 1 and for list indexes that start at 0
-    l = tb.lineno - 2
-
-    # Get line
-    line = getline(l)
-    error(errors.get(type(e), type(e).__name__), line, l + 1, extra=str(e).capitalize())
-
-
 def load(file: str):
+    """
+    Loads Apricot Library file and adds functions to enviroment in the corresposding module.
+    :param file:
+    :return:
+    """
     global env
 
     # Checking file type
@@ -113,7 +124,7 @@ def load(file: str):
         code = f.read().decode('utf-8', errors='ignore')
 
     # Checking if the code is valid
-    allowed = ['\t', 'func', 'class', '\n', '    ', '', r'\\', 'using', 'import']
+    allowed = ['\t', 'func', 'class', '\n', '    ', '', r'//', 'using', 'import']
     for l, line in enumerate(code.splitlines()):
         correct = False
 
@@ -137,6 +148,14 @@ def load(file: str):
     env.update({name: library})
 
 def variable(name: str, value, l: int, varType: str = ''):
+    """
+    Built-in function used in compilation to handle variable creation and assignment.
+    :param name:
+    :param value:
+    :param l:
+    :param varType:
+    :return:
+    """
     global env, varTypes
 
     if varType:
@@ -159,25 +178,33 @@ def variable(name: str, value, l: int, varType: str = ''):
             env[name] = eval(value, env)
 
 def apricompile(code: str):
+    """
+    Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
+    compiled seudo-Python code.
+    :param code:
+    :return:
+    """
     global strings, variable, varTypes
 
     # Variables
-    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'exception': exception, 'variable': variable, 'pointer': Pointer}
+    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'variable': variable, 'pointer': Pointer}
     altered = code
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
               r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
-              # r'((\w+): (*\w[^,]*)(?=[),]))': '(\x1a:2: \x1a:1)'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     nameErrors = [r'globals\(\)', r'locals\(\)']
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
 
     # Comments
-    for comm in re.findall(r'\\\\.*', altered):
+    for comm in re.findall(r'//.*', altered):
         altered = altered.replace(comm, '')
+
+    # Tabs
+    altered = altered.replace('\t', '    ')
 
     # Semicolons
     for l, line in enumerate(altered.splitlines()):
@@ -185,7 +212,7 @@ def apricompile(code: str):
         line = line.strip()
 
         # Comments and empty lines
-        if line[:2] in [r'\\', '']:
+        if line[:2] in [r'//', '']:
             continue
 
         if line[-1] not in [':', ';']:
@@ -229,7 +256,7 @@ def apricompile(code: str):
             error('SyntaxError', wrongCasts[0][0], l)
 
     # Type casting
-    for cast in re.findall(rf'(<(int|float|str|bool|list|tuple|dict|object{classNames}) ?(.*)>)', altered):
+    for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', altered):
         altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
 
     # Wrong __init__ with return type specified
@@ -243,9 +270,9 @@ def apricompile(code: str):
         altered = altered.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
 
     # Functions
-    functions = re.findall(rf'(func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
+    functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)' , altered)
     for func in functions:
-        altered = altered.replace(func[0], f'def {func[2]}({func[3]}, *_: object) -> {func[1] if func[1] != "null" else "None"}:')
+        altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}, *_: object) -> {func[2] if func[2] != "null" else "None"}:\n{func[1]}    globals().update(locals())')
 
     # Variable types
     for l, line in enumerate(altered.splitlines()):
@@ -296,13 +323,38 @@ def apricompile(code: str):
         altered = altered.replace(f'\x1a={f}', fill)
 
     # Automatic error handling wrap
-    altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
+    # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
     # Setup
     altered = altered + '\n' if altered[-1] != '\n' else ''
     altered = altered.replace(';\n', '\n')
 
     return altered, env
+
+def run(code: str, enviroment: dict, apricode: str):
+    ERRORS = {FileNotFoundError: 'FileError', FileExistsError: 'FileError'}
+
+    try:
+        exec(code, enviroment)
+    except Exception as e:
+        # Traceback info
+        tb = traceback.extract_tb(e.__traceback__)[-1]
+        l = tb[1]
+
+        # Pull classes to use for rest of code
+        classes = ['pointer', 'function']
+        classes.extend(re.findall(r'class (\w+)(?:\(.*\))? ?:', code))
+        classNames = f'{"|" if classes else ""}{"|".join(classes)}'
+
+        # Puffing apricode to match compiled lines
+        puffed = apricode
+        for func in re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', apricode):
+            puffed = puffed.replace(func[0], f'{func[0]}\n//')
+
+        # Subtract by the number of added lines
+        line = getline(l, puffed)
+        l = findLine(line, apricode)
+        error(type(e).__name__, line, l, line=line)
 
 
 if __name__ == '__main__':
@@ -320,11 +372,16 @@ if __name__ == '__main__':
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
 
+    # Compile and report time
+    start = time.time()
     compiled, env = apricompile(code)
+    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
 
     # Execute the compiled code
     if '-e' in sys.argv:
-        exec(compiled, env)
+        start = time.time()
+        run(compiled, env, code)
+        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:

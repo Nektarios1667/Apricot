@@ -1,32 +1,31 @@
-import functions;
-f: object = functions;
+func int factorial(num):
+    result = 1;
+    for i : range(1, num + 1):
+        result *= i;
+    return result;
 
-func int add(a, b):
-    return a + b;
+func float average(a, b, c):
+    return (a + b + c) / 3.0;
 
-class Item:
-    func Item(name, money):
-        this.name = name;
-        this.money = money;
+func int fibonacci(n):
+    if n <= 1:
+        return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
 
-        return null;
+func bool isEven(num):
+    return num % 2 == 0;
 
-Item: test = Item('a', 10);
-int: money = test.money;
+int: num = 5;
+log("Factorial of " + <str num> + ": " + <str factorial(num)>);
 
-str: name = 'bob';
-int: age = <int '22'>;
-pointer: point = @age;
-pointer: layered = @point;
-age = 23;
+float: avg = average(3.5, 7.2, 10.8);
+log("Average of 3.5, 7.2, and 10.8: " + <str avg>);
 
-log(^^layered);
-log(f.multiAdd(1, 2, 3));
+int: fibNum = 8;
+log("Fibonacci number at position " + <str fibNum> + ": " + <str fibonacci(fibNum)>);
 
-
-for x : range(10):
-    if x == 10:
-        next;
-    else if x == 9:
-        log(x);
-
+for i : range(1, 11):
+    if isEven(i):
+        log(<str i> + " is even");
+    else:
+        log(<str i> + " is odd");
