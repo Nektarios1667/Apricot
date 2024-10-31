@@ -1,31 +1,10 @@
-func int factorial(num):
-    result = 1;
-    for i : range(1, num + 1):
-        result *= i;
-    return result;
+import typeguard
 
-func float average(a, b, c):
-    return (a + b + c) / 3.0;
+@typeguard.typecheckd
+func int test1(a, b):
+    int: c = a + b;
+    log(locals());
+    c = c + 1;
+    return c;
 
-func int fibonacci(n):
-    if n <= 1:
-        return n;
-    return fibonacci(n - 1) + fibonacci(n - 2);
-
-func bool isEven(num):
-    return num % 2 == 0;
-
-int: num = 5;
-log("Factorial of " + <str num> + ": " + <str factorial(num)>);
-
-float: avg = average(3.5, 7.2, 10.8);
-log("Average of 3.5, 7.2, and 10.8: " + <str avg>);
-
-int: fibNum = 8;
-log("Fibonacci number at position " + <str fibNum> + ": " + <str fibonacci(fibNum)>);
-
-for i : range(1, 11):
-    if isEven(i):
-        log(<str i> + " is even");
-    else:
-        log(<str i> + " is odd");
+log(test1(1, 2));

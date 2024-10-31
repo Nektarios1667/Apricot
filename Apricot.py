@@ -1,16 +1,12 @@
-import re
-import sys
 import time
 import traceback
 import types
-from typing import Literal
-
-from numba import jit
-
 from Colors import ColorText as C
 import os
 from Pointers import *
 from Library import *
+import sys
+import re
 
 def inject(phrase: str):
     """
@@ -38,37 +34,26 @@ def getline(l: int, phrase: str):
 
     return spaced.splitlines()[l - 1]
 
-def fime(time: float | int, units: Literal['ms', 's', 'm', 'h', 'd']):
-    factors = {'ms': .001, 's': 1, 'm': 60, 'h': 3_600, 'd': 86_400}
-
-    seconds = time * factors[units]
-    minutes = seconds/60
-    hours = minutes/60
-    days = hours/24
-    if seconds < .1:
-        return f'{seconds*1000:.1f} ms'
-    elif minutes > 4:
-        return f'{minutes:.1f} m'
-    elif hours > 4:
-        return f'{hours:.1f} h'
-    elif days >= 1:
-        return f'{days:.1f} d'
-    else:
-        return f'{seconds:.1f} s'
-
 def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
+    global altered
+
     # If line isn't specified find automatically
     line = line if line else getline(l, code)
 
     # Printing and closing
     print(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
-    input('Press enter to exit.')
+
+    if '-w' in sys.argv:
+        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
+            f.write(altered)
+
     sys.exit(-1)
 
 
-def returnCheck(value, instance, l):
-    # Convert None to NoneType
-    instance = instance if instance is not None else types.NoneType
+def returnCheck(value, instance, l, env):
+    # Converting and evaluating
+    instance = eval(instance) if instance is not None else types.NoneType
+    value = eval(eval(value, env), env)
 
     # Checking
     if isinstance(value, instance):
@@ -81,9 +66,8 @@ def returnCheck(value, instance, l):
         error('TypeError', valueStr, l + 1, f'Return type defined as -{"null" if instance is types.NoneType else instance.__name__}- but value is -{valueType}-')
 
 
-def log(*args):
-    if len(args) > 0:
-        print('null' if args[0] is None else args[0], *args[1:])
+def log(val, newline: bool = True):
+    print('null' if val is None else val, '\n' if newline else '')
 
 
 def funcUpType(l: int, paragraph: str):
@@ -156,7 +140,7 @@ def load(file: str):
                 break
 
         if not correct:
-            error('LibraryError', line, l)
+            error('LibraryError', line, l + 1)
 
     # Running
     compiled, importing = apricompile(code)
@@ -169,35 +153,35 @@ def load(file: str):
 
     env.update({name: library})
 
-def variable(name: str, value, l: int, varType: str = ''):
+def variable(name: str, value, l: int, env: dict, varType: str = ''):
     """
     Built-in function used in compilation to handle variable creation and assignment.
+    :param env:
     :param name:
     :param value:
     :param l:
     :param varType:
     :return:
     """
-    global env, varTypes
+    global varTypes, altered
 
     if varType:
-        varType = eval(varType, env)
+        varType = eval(varType)
 
-        if isinstance(eval(value, env), varType) and name not in varTypes:
-            env[name] = eval(value, env)
-            varTypes[name] = varType
-        elif name in varTypes:
+        if name in varTypes:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created')
-        else:
+        elif not isinstance(eval(value, env), varType):
             error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varType.__name__}- but value is -{tyval(value).__name__}-')
     else:
-        if name not in varTypes:
+        if name not in env:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
-            env[name] = eval(value, env)
-        elif not isinstance(eval(value, env), varTypes[name]):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varTypes[name].__name__}- but value is -{tyval(value).__name__}-')
-        else:
-            env[name] = eval(value, env)
+        elif not isinstance(eval(value, env), type(env[value])):
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{type(env[value])}- but value is -{tyval(value).__name__}-')
+
+    try:
+        env[name] = value
+    except:
+        error('CompilationError', 'An error occurred during compilation', l + 1)
 
 def apricompile(code: str):
     """
@@ -206,10 +190,10 @@ def apricompile(code: str):
     :param code:
     :return:
     """
-    global strings, variable, varTypes
+    global strings, variable, varTypes, altered
 
     # Variables
-    env = {'log': log, 'returnCheck': returnCheck, 'load': load, 'variable': variable, 'pointer': Pointer}
+    env = {'log': print, 'returnCheck': returnCheck, 'load': load, 'variable': variable, 'pointer': Pointer}
     altered = code
     varTypes = {}
     strings = []
@@ -217,7 +201,8 @@ def apricompile(code: str):
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
               r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
-    nameErrors = [r'globals\(\)', r'locals\(\)']
+    # nameErrors = [r'globals\(\)', r'locals\(\)']
+    nameErrors = []
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
     directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
 
@@ -227,7 +212,6 @@ def apricompile(code: str):
 
     # Tabs
     altered = altered.replace('\t', '    ')
-
     # Semicolons
     for l, line in enumerate(altered.splitlines()):
         # Strip whitespace
@@ -275,7 +259,7 @@ def apricompile(code: str):
     for l, line in enumerate(altered.splitlines()):
         wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
         if wrongCasts:
-            error('SyntaxError', wrongCasts[0][0], l)
+            error('SyntaxError', wrongCasts[0][0], l + 1)
 
     # Type casting
     for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', altered):
@@ -294,19 +278,19 @@ def apricompile(code: str):
     # Functions
     functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)' , altered)
     for func in functions:
-        altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}, *_: object) -> {func[2] if func[2] != "null" else "None"}:\n{func[1]}    globals().update(locals())')
+        altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}, *_: object) -> {func[2] if func[2] != "null" else "None"}:')
 
     # Variable types
     for l, line in enumerate(altered.splitlines()):
         variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
         for variable in variables:
-            altered = altered.replace(variable[0], f'variable("{variable[2]}", "{variable[3]}", {l}, "{variable[1]}")')
+            altered = altered.replace(variable[0], f'variable("{variable[2]}", "{variable[3]}", {l}, locals(), "{variable[1]}")')
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):
-        plainVars = re.findall(r'((?<!.)(\w+) *= *(\S*);)', line)
+        plainVars = re.findall(r'((?<!\S)([a-zA-Z_][\w_]*) *= *(\S*);)', line)
         for plain in plainVars:
-            altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l})')
+            altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l}, locals())')
 
     # __init__ keyword errors
     wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
@@ -324,7 +308,7 @@ def apricompile(code: str):
         # 0 = full phrase, 1 = full whitespace, 2 = returning phrase
         for funcReturn in funcReturns:
             # Prevent all similar returns from being incorrectly replaced
-            altered = '\n'.join([*altered.splitlines()[:l], f'{funcReturn[1]}return returnCheck({funcReturn[2]}, {funcUpType(l, altered)}, {l})', *altered.splitlines()[l + 1:]])
+            altered = '\n'.join([*altered.splitlines()[:l], f'{funcReturn[1]}return returnCheck("{funcReturn[2]}", "{funcUpType(l, altered)}", {l}, locals())', *altered.splitlines()[l + 1:]])
 
     # Switch replacements
     for apr, py in direct.items():
@@ -348,36 +332,26 @@ def apricompile(code: str):
     # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
     # Setup
-    altered = altered + '\n' if altered[-1] != '\n' else altered
+    altered = altered + '\n' if altered[-1] != '\n' else ''
     altered = altered.replace(';\n', '\n')
 
     return altered, env
 
 def run(code: str, enviroment: dict, apricode: str):
     ERRORS = {FileNotFoundError: 'FileError', FileExistsError: 'FileError'}
-
-    try:
-        exec(code, enviroment)
-    except Exception as e:
-        # Traceback info
-        tb = traceback.extract_tb(e.__traceback__)[-1]
-        l = tb[1]
-
-        # Pull classes to use for rest of code
-        classes = ['pointer', 'function']
-        classes.extend(re.findall(r'class (\w+)(?:\(.*\))? ?:', code))
-        classNames = f'{"|" if classes else ""}{"|".join(classes)}'
-
-        # Puffing apricode to match compiled lines
-        puffed = apricode
-        for func in re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', apricode):
-            puffed = puffed.replace(func[0], f'{func[0]}\n//')
-
-        # Subtract by the number of added lines
-        line = getline(l, puffed)
-        l = findLine(line, apricode)
-        error(type(e).__name__, line, l, line=line)
-
+    exec(code, enviroment)
+    # try:
+    #     exec(code, enviroment)
+    # except Exception as e:
+    #     # Traceback info
+    #     tb = traceback.extract_tb(e.__traceback__)[-1]
+    #     l = tb[1]
+    #
+    #     # Get line info
+    #     line = getline(l, apricode)
+    #
+    #     # Apricot error
+    #     error(ERRORS.get(type(e), type(e).__name__), line, l)
 
 if __name__ == '__main__':
     # Get file path
@@ -389,6 +363,7 @@ if __name__ == '__main__':
     strings = []
     varTypes = {}
     classes = []
+    altered = ''
 
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
@@ -397,13 +372,13 @@ if __name__ == '__main__':
     # Compile and report time
     start = time.time()
     compiled, env = apricompile(code)
-    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {fime(time.time() - start, "s")}\n{C.RESET}')
+    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
 
     # Execute the compiled code
     if '-e' in sys.argv:
         start = time.time()
         run(compiled, env, code)
-        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {fime(time.time() - start, "s")}\n{C.RESET}')
+        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
@@ -414,3 +389,9 @@ if __name__ == '__main__':
 
 # Executable command: pyinstaller --onefile --icon="C:\Users\nekta\Downloads\apricot.png" --distpath="C:\Program Files\Apricot" Apricot.py
 # Executable run: Apricot -p C:\Users\nekta\PycharmProjects\Apricot\code.apr -e
+
+"""Currently trying to get local variables. The problem is locals() is impossible to edit. I have tried executing it but it isn't correctly updating locals(). Sometimes it may seem like it works
+such as when using return, but this is because some functions are my builtin functions which handle it better. I can't replace the code because I would have to reexecute, which I haven't tried
+yet but it would not work well running a user's scipt twice. There are some quick fixes of using globals(), but this would remove scopes entirely. I could also remove the built-in variable
+creation function, but that would remove a main part of Apricot. Maybe I could use some library to type check but this probably doesn't exist in a way I could use.
+"""
