@@ -1,10 +1,42 @@
-import typeguard
+include math;
+import functions;
 
-@typeguard.typecheckd
-func int test1(a, b):
-    int: c = a + b;
-    log(locals());
-    c = c + 1;
-    return c;
+// WORK IN PROGRESS
+// const: pi = 3.1415926;
 
-log(test1(1, 2));
+class improvedString inherits str:
+    func improvedString(value):
+        this.value = value;
+
+    func int setChar(char, idx):
+        this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
+        return this.value;
+
+func int factorial(value):
+    int: product = 1;
+
+    for num : range(2, value + 1):
+        ~product = ~product * num;
+
+    return ~product;
+
+
+for i : range(10):
+    log(factorial(i));
+
+while true:
+    str: answer = input('Exit program (y/n): ');
+    if answer == 'y':
+        exit();
+    else if answer == 'n':
+        break;
+    else:
+        log('Answer with y/n.');
+
+try:
+    int: age = <int input('Age: ')>;
+
+catch ValueError:
+    log('Input not a number.');
+
+log(pi);

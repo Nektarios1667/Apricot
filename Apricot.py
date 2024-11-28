@@ -8,6 +8,7 @@ from Library import *
 import sys
 import re
 
+
 def inject(phrase: str):
     """
     Injects all strings into phrase by replacing \x1a@(#) with the index in the string list.
@@ -21,6 +22,7 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
+
 def getline(l: int, phrase: str):
     """
     Returns the line of the code based on l. Note: the line numbers start at 1
@@ -33,6 +35,7 @@ def getline(l: int, phrase: str):
         spaced = spaced.replace('\n\n', '\n//\n')
 
     return spaced.splitlines()[l - 1]
+
 
 def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
     global altered
@@ -50,22 +53,6 @@ def error(error: str, description: str, l: int, extra: str = '', line: str = '')
     sys.exit(-1)
 
 
-def returnCheck(value, instance, l, env):
-    # Converting and evaluating
-    instance = eval(instance) if instance is not None else types.NoneType
-    value = eval(eval(value, env), env)
-
-    # Checking
-    if isinstance(value, instance):
-        return value
-    else:
-        # Used for converting None to null
-        valueStr = str(value) if value is not None else 'null'
-        valueType = type(value).__name__ if value is not None else 'null'
-
-        error('TypeError', valueStr, l + 1, f'Return type defined as -{"null" if instance is types.NoneType else instance.__name__}- but value is -{valueType}-')
-
-
 def log(val, newline: bool = True):
     print('null' if val is None else val, '\n' if newline else '')
 
@@ -78,20 +65,24 @@ def funcUpType(l: int, paragraph: str):
             return funcType if funcType is None else funcType.__name__
 
 
-def tyval(value):
+def tyval(value, env):
     """
     Returns the type of the evaluated string.
     :param value:
     :return:
     """
-    global strings, env
+    global strings
 
     if value[0] == '\x1a':
         return str
     if '\x1a' in value:
-        return tyval(inject(value))
+        return tyval(inject(value), env)
 
-    return type(eval(value, env))
+    try:
+        return type(eval(value, env))
+    except:
+        return type(env[value])
+
 
 def findLine(phrase: str, paragraph: str):
     """
@@ -153,6 +144,7 @@ def load(file: str):
 
     env.update({name: library})
 
+
 def variable(name: str, value, l: int, env: dict, varType: str = ''):
     """
     Built-in function used in compilation to handle variable creation and assignment.
@@ -165,23 +157,37 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
     """
     global varTypes, altered
 
+    value = eval(value, env)
     if varType:
         varType = eval(varType)
 
         if name in varTypes:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created')
-        elif not isinstance(eval(value, env), varType):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varType.__name__}- but value is -{tyval(value).__name__}-')
+        elif name in constants:
+            error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
+        elif not isinstance(value, varType):
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varType.__name__}- but value is -{type(value).__name__}-')
     else:
-        if name not in env:
+        if name in constants:
+            error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
+        elif name not in env:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
-        elif not isinstance(eval(value, env), type(env[value])):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{type(env[value])}- but value is -{tyval(value).__name__}-')
+        elif not isinstance(value, type(env[value])):
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{type(env[value])}- but value is -{type(value).__name__}-')
 
     try:
         env[name] = value
     except:
         error('CompilationError', 'An error occurred during compilation', l + 1)
+
+def const(name: str, value, l: int):
+    global constants, env
+
+    if name in constants:
+        error('ConstantError', name, l, extra='Constant variable redefined')
+    else:
+        constants[name] = eval(value)
+
 
 def apricompile(code: str):
     """
@@ -190,21 +196,23 @@ def apricompile(code: str):
     :param code:
     :return:
     """
-    global strings, variable, varTypes, altered
+    global strings, variable, varTypes, altered, constants
 
     # Variables
-    env = {'log': print, 'returnCheck': returnCheck, 'load': load, 'variable': variable, 'pointer': Pointer}
+    env = {'log': print, 'load': load, 'pointer': Pointer, 'variable': variable, 'const': const}
+    constants = {}
     altered = code
     varTypes = {}
     strings = []
-    direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
+    direct = {r'(switch ([^:]+):)':            'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
-              r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val'}
+              r'(using (.*):)':                'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
+              r'(noop;())':                    'pass'}
     syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
     # nameErrors = [r'globals\(\)', r'locals\(\)']
     nameErrors = []
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
-    directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue'}
+    directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
     # Comments
     for comm in re.findall(r'//.*', altered):
@@ -212,6 +220,7 @@ def apricompile(code: str):
 
     # Tabs
     altered = altered.replace('\t', '    ')
+
     # Semicolons
     for l, line in enumerate(altered.splitlines()):
         # Strip whitespace
@@ -243,6 +252,11 @@ def apricompile(code: str):
             if found:
                 error('SyntaxError', found[0], l + 1)
 
+    # Local variables
+    for l, line in enumerate(altered.splitlines()):
+        for var in re.findall(r'~[a-zA-Z_][\w_]*', line):
+            altered = altered.replace(var, f'locals()["{var[1:]}"]')
+
     # Name errors
     for l, line in enumerate(altered.splitlines()):
         for syn in nameErrors:
@@ -252,8 +266,18 @@ def apricompile(code: str):
 
     # Pull classes to use for rest of code
     classes = ['pointer', 'function']
-    classes.extend(re.findall(r'class (\w+)(?:\(.*\))? ?:', altered))
+    classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', altered))
     classNames = f'{"|" if classes else ""}{"|".join(classes)}'
+
+    # Constants
+    for l, line in enumerate(altered.splitlines()):
+        for con in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *([^ ][^;]*));', line):
+            altered = altered.replace(con[0], f'const("{con[1]}", "{con[2]}", {l})')
+
+    # Class declarations
+    for l, line in enumerate(altered.splitlines()):
+        for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? ?:', line):
+            altered = altered.replace(line, f'class {cls[0]}({cls[1]}):')
 
     # Remove old type casting
     for l, line in enumerate(altered.splitlines()):
@@ -276,7 +300,7 @@ def apricompile(code: str):
         altered = altered.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
 
     # Functions
-    functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)' , altered)
+    functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
     for func in functions:
         altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}, *_: object) -> {func[2] if func[2] != "null" else "None"}:')
 
@@ -302,14 +326,6 @@ def apricompile(code: str):
     for init in inits:
         altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self, {init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
 
-    # Final return checks
-    for l, line in enumerate(altered.splitlines()):
-        funcReturns = re.findall(r'(((?:\t| {4})*)return ([^;]*);)', line)
-        # 0 = full phrase, 1 = full whitespace, 2 = returning phrase
-        for funcReturn in funcReturns:
-            # Prevent all similar returns from being incorrectly replaced
-            altered = '\n'.join([*altered.splitlines()[:l], f'{funcReturn[1]}return returnCheck("{funcReturn[2]}", "{funcUpType(l, altered)}", {l}, locals())', *altered.splitlines()[l + 1:]])
-
     # Switch replacements
     for apr, py in direct.items():
         while re.findall(apr, altered):
@@ -332,10 +348,11 @@ def apricompile(code: str):
     # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
     # Setup
-    altered = altered + '\n' if altered[-1] != '\n' else ''
+    altered = altered + '\n' if altered[-1] != '\n' else altered + ''
     altered = altered.replace(';\n', '\n')
 
     return altered, env
+
 
 def run(code: str, enviroment: dict, apricode: str):
     ERRORS = {FileNotFoundError: 'FileError', FileExistsError: 'FileError'}
@@ -353,6 +370,7 @@ def run(code: str, enviroment: dict, apricode: str):
     #     # Apricot error
     #     error(ERRORS.get(type(e), type(e).__name__), line, l)
 
+
 if __name__ == '__main__':
     # Get file path
     # Apricot py/exe, filepath of .apr, flags such as -e or -w, filepath of compiled file for -w
@@ -363,6 +381,7 @@ if __name__ == '__main__':
     strings = []
     varTypes = {}
     classes = []
+    constants = {}
     altered = ''
 
     # Read and compile the code file
@@ -394,4 +413,7 @@ if __name__ == '__main__':
 such as when using return, but this is because some functions are my builtin functions which handle it better. I can't replace the code because I would have to reexecute, which I haven't tried
 yet but it would not work well running a user's scipt twice. There are some quick fixes of using globals(), but this would remove scopes entirely. I could also remove the built-in variable
 creation function, but that would remove a main part of Apricot. Maybe I could use some library to type check but this probably doesn't exist in a way I could use.
+
+My current fix is to require the user to put ~var before local variables then use the compiler to replace it with globals()[var]. This actually works very well and the variables are not 
+accesable outside of the scope. THe ~ isn't needed for the return function.
 """
