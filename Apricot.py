@@ -68,6 +68,7 @@ def funcUpType(l: int, paragraph: str):
 def tyval(value, env):
     """
     Returns the type of the evaluated string.
+    :param env:
     :param value:
     :return:
     """
@@ -159,7 +160,7 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
 
     value = eval(value, env)
     if varType:
-        varType = eval(varType)
+        varType = eval(varType, env)
 
         if name in varTypes:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created')
@@ -180,15 +181,6 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
     except:
         error('CompilationError', 'An error occurred during compilation', l + 1)
 
-def const(name: str, value, l: int):
-    global constants, env
-
-    if name in constants:
-        error('ConstantError', name, l, extra='Constant variable redefined')
-    else:
-        constants[name] = eval(value)
-
-
 def apricompile(code: str):
     """
     Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
@@ -199,7 +191,7 @@ def apricompile(code: str):
     global strings, variable, varTypes, altered, constants
 
     # Variables
-    env = {'log': print, 'load': load, 'pointer': Pointer, 'variable': variable, 'const': const}
+    env = {'log': print, 'load': load, 'pointer': pointer, 'variable': variable}
     constants = {}
     altered = code
     varTypes = {}
@@ -269,11 +261,6 @@ def apricompile(code: str):
     classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', altered))
     classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
-    # Constants
-    for l, line in enumerate(altered.splitlines()):
-        for con in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *([^ ][^;]*));', line):
-            altered = altered.replace(con[0], f'const("{con[1]}", "{con[2]}", {l})')
-
     # Class declarations
     for l, line in enumerate(altered.splitlines()):
         for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? ?:', line):
@@ -312,7 +299,7 @@ def apricompile(code: str):
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):
-        plainVars = re.findall(r'((?<!\S)([a-zA-Z_][\w_]*) *= *(\S*);)', line)
+        plainVars = re.findall(r'((?:\n)([a-zA-Z_][\w_]*) *= *(\S*);)', line)
         for plain in plainVars:
             altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l}, locals())')
 
@@ -339,6 +326,20 @@ def apricompile(code: str):
     # Switch phrase replacements
     for apr, py in directPhrase.items():
         altered = re.sub(apr, py, altered)
+
+    # Constants
+    for l, line in enumerate(altered.splitlines()):
+        for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
+            if name in constants:
+                error('ConstantError', name, l + 1, f'Cannot change value of constant "{name}"')
+            else:
+                constants[name] = value
+                altered = altered.replace(full, f'# CONST')
+
+    # Constant replacements
+    for const, value in constants.items():
+        for repl in re.findall(fr'\b{const}\b', altered):
+            altered = altered.replace(repl, value)
 
     # Inject strings
     for f, fill in enumerate(strings):

@@ -1,4 +1,4 @@
-class Pointer:
+class pointer:
     def __init__(self, var: str, env=None):
         if env is None:
             env = None

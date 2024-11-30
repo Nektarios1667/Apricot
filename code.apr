@@ -1,8 +1,7 @@
 include math;
 import functions;
 
-// WORK IN PROGRESS
-// const: pi = 3.1415926;
+const: pi = 3.1415926;
 
 class improvedString inherits str:
     func improvedString(value):
@@ -39,4 +38,8 @@ try:
 catch ValueError:
     log('Input not a number.');
 
+int: number = 0;
+pointer: point = @number;
+number = number + 1;
+log(^point);
 log(pi);
