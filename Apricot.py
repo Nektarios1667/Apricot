@@ -1,12 +1,12 @@
+import os.path
+import pickle
 import time
-import traceback
-import types
 from Colors import ColorText as C
-import os
 from Pointers import *
 from Library import *
 import sys
 import re
+from Cache import Cache
 
 
 def inject(phrase: str):
@@ -135,7 +135,7 @@ def load(file: str):
             error('LibraryError', line, l + 1)
 
     # Running
-    compiled, importing = apricompile(code)
+    compiled, importing, _ = apricompile(code)
     exec(compiled, importing)
 
     # Clean globals
@@ -190,13 +190,19 @@ def apricompile(code: str):
     """
     global strings, variable, varTypes, altered, constants
 
-    # Variables
+    # Starting enviroment
     env = {'log': print, 'load': load, 'pointer': pointer, 'variable': variable}
+
+    # Blank code
+    if not code:
+        return '', env, Cache()
+
+    # Variables
     constants = {}
     altered = code
     varTypes = {}
     strings = []
-    direct = {r'(switch ([^:]+):)':            'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch (.+):)': 'except \x1a:1:',
+    direct = {r'(switch ([^:]+):)':            'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( .+)?:)': 'except \x1a:1:',
               r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
               r'(using (.*):)':                'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
               r'(noop;())':                    'pass'}
@@ -299,7 +305,7 @@ def apricompile(code: str):
 
     # Plain var declarations
     for l, line in enumerate(altered.splitlines()):
-        plainVars = re.findall(r'((?:\n)([a-zA-Z_][\w_]*) *= *(\S*);)', line)
+        plainVars = re.findall(r'(\n([a-zA-Z_][\w_]*) *= *(\S*);)', line)
         for plain in plainVars:
             altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l}, locals())')
 
@@ -352,7 +358,11 @@ def apricompile(code: str):
     altered = altered + '\n' if altered[-1] != '\n' else altered + ''
     altered = altered.replace(';\n', '\n')
 
-    return altered, env
+    # Cache
+    cache = Cache()
+    cache.store(code, altered, env)
+
+    return altered, env, cache
 
 
 def run(code: str, enviroment: dict, apricode: str):
@@ -385,20 +395,44 @@ if __name__ == '__main__':
     constants = {}
     altered = ''
 
+    # Cache loading
+    caching = '-c' in sys.argv
+    if caching:
+        try:
+            with open('_cache_.pkl', 'rb') as file:
+                caches = pickle.load(file)
+        except (FileExistsError, FileNotFoundError, EOFError):
+            with open('_cache_.pkl', 'wb') as file:
+                pickle.dump([], file)
+                caches = []
+
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
 
     # Compile and report time
     start = time.time()
-    compiled, env = apricompile(code)
-    print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+    for cache in caches:
+        if cache.compare(code):
+            compiled = cache.grab()
+            _, env, _ = apricompile('')
+            print(f'{C.CYAN}Uncached "{sys.argv[1]}.apc" in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+            break
+
+    else:
+        compiled, env, cache = apricompile(code)
+        print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
 
     # Execute the compiled code
     if '-e' in sys.argv:
         start = time.time()
         run(compiled, env, code)
         print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+
+    # Caching
+    if caching:
+        with open('_cache_.pkl', 'wb') as file:
+            pickle.dump([*caches, cache][:3], file)
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
