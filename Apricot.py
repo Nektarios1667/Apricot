@@ -6,7 +6,22 @@ from Pointers import *
 from Library import *
 import sys
 import re
-from Cache import Cache
+from Cache import Cache, outputs
+
+OUTPUTS = r"""
+    \b(open|read|write|close|seek|truncate)\b|
+    \b(os\.(remove|rename|replace|rmdir|mkdir|makedirs|removedirs))\b|
+    \b(shutil\.(copy|copy2|copytree|move|rmtree))\b|
+    \b(socket\.(socket|bind|connect|send|recv|listen|accept|close))\b|
+    \b(log|input)\b|
+    \b(sys\.(stdout|stderr|stdin))\b|
+    \b(os\.(system|kill|popen))\b|
+    \b(subprocess\.(run|Popen|call|check_output|check_call))\b|
+    \b(os\.environ(\[.*?]|\.get|\.setdefault|\.pop))\b|
+    \b(threading\.(Thread|Lock|Event|Semaphore|Timer|Barrier))\b|
+    \b(multiprocessing\.(Process|Queue|Pipe|Pool|Manager))\b|
+    \b(asyncio\.(run|create_task|sleep|gather|wait|ensure_future))\b
+"""
 
 
 def inject(phrase: str):
@@ -32,7 +47,7 @@ def getline(l: int, phrase: str):
     """
     spaced = phrase
     while '\n\n' in spaced:
-        spaced = spaced.replace('\n\n', '\n//\n')
+        spaced = spaced.replace('\n\n', '\n// There once was a double newline...\n')
 
     return spaced.splitlines()[l - 1]
 
@@ -51,38 +66,6 @@ def error(error: str, description: str, l: int, extra: str = '', line: str = '')
             f.write(altered)
 
     sys.exit(-1)
-
-
-def log(val, newline: bool = True):
-    print('null' if val is None else val, '\n' if newline else '')
-
-
-def funcUpType(l: int, paragraph: str):
-    for line in paragraph.splitlines()[l::-1]:
-        if line.strip().startswith('def '):
-            # Find return type annotation and remove whitespace/colon
-            funcType = eval(line.split('->')[1][:-1].strip())
-            return funcType if funcType is None else funcType.__name__
-
-
-def tyval(value, env):
-    """
-    Returns the type of the evaluated string.
-    :param env:
-    :param value:
-    :return:
-    """
-    global strings
-
-    if value[0] == '\x1a':
-        return str
-    if '\x1a' in value:
-        return tyval(inject(value), env)
-
-    try:
-        return type(eval(value, env))
-    except:
-        return type(env[value])
 
 
 def findLine(phrase: str, paragraph: str):
@@ -181,6 +164,7 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
     except:
         error('CompilationError', 'An error occurred during compilation', l + 1)
 
+
 def apricompile(code: str):
     """
     Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
@@ -188,14 +172,18 @@ def apricompile(code: str):
     :param code:
     :return:
     """
-    global strings, variable, varTypes, altered, constants
+    global strings, variable, varTypes, altered, constants, regexes
 
     # Starting enviroment
-    env = {'log': print, 'load': load, 'pointer': pointer, 'variable': variable}
+    env = {'log': print, 'load': load, 'pointer': pointer, 'variable': variable, 'null': None, 'true': True, 'false': False}
 
     # Blank code
     if not code:
         return '', env, Cache()
+
+    # Checking if script is all internal
+    if not outputs(code, regexes['persistents']):
+        return '# There was some code...\x05', env, Cache()
 
     # Variables
     constants = {}
@@ -203,18 +191,18 @@ def apricompile(code: str):
     varTypes = {}
     strings = []
     direct = {r'(switch ([^:]+):)':            'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( .+)?:)': 'except \x1a:1:',
-              r'(for (\w[\w\d_]*) ?: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
+              r'(for (\w[\w\d_]*) ?:: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'load(".libraries/\x1a:1.apl")', r'(include (\w+);)': 'import \x1a:1',
               r'(using (.*):)':                'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
-              r'(noop;())':                    'pass'}
-    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->']
+              r'(noop;())':                    'pass', r'(\|(\d+), *(\d+), *(\d+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)'}
+    syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
     # nameErrors = [r'globals\(\)', r'locals\(\)']
     nameErrors = []
     syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
-    directPhrase = {r'\bnull\b': 'None', 'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
+    directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
     # Comments
     for comm in re.findall(r'//.*', altered):
-        altered = altered.replace(comm, '')
+        altered = altered.replace(comm, '# There was a comment...;')
 
     # Tabs
     altered = altered.replace('\t', '    ')
@@ -384,7 +372,6 @@ def run(code: str, enviroment: dict, apricode: str):
 
 if __name__ == '__main__':
     # Get file path
-    # Apricot py/exe, filepath of .apr, flags such as -e or -w, filepath of compiled file for -w
     filepath = sys.argv[1]
     folder = os.path.dirname(sys.argv[1])
 
@@ -396,15 +383,17 @@ if __name__ == '__main__':
     altered = ''
 
     # Cache loading
-    caching = '-c' in sys.argv
-    if caching:
-        try:
-            with open('_cache_.pkl', 'rb') as file:
-                caches = pickle.load(file)
-        except (FileExistsError, FileNotFoundError, EOFError):
-            with open('_cache_.pkl', 'wb') as file:
-                pickle.dump([], file)
-                caches = []
+    try:
+        with open('_cache_.pkl', 'rb') as file:
+            cached = pickle.load(file)
+            caches = cached['caches']
+            regexes = cached['regexes']
+    except Exception:
+        with open('_cache_.pkl', 'wb') as file:
+            cached = {'caches': [], 'regexes': {'persistents': re.compile(OUTPUTS, re.VERBOSE)}}
+            pickle.dump(cached, file)
+            caches = []
+            regexes = cached['regexes']
 
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
@@ -416,23 +405,28 @@ if __name__ == '__main__':
         if cache.compare(code):
             compiled = cache.grab()
             _, env, _ = apricompile('')
-            print(f'{C.CYAN}Uncached "{sys.argv[1]}.apc" in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+            print(f'{C.CYAN}Uncached "{sys.argv[1]}.apc" [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
             break
-
     else:
+        # Compilation
         compiled, env, cache = apricompile(code)
-        print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+
+        # Messages
+        if compiled[-1] == '\x05':
+            print(f'{C.CYAN}Skipping execution of internal code [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
+        else:
+            print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
 
     # Execute the compiled code
-    if '-e' in sys.argv:
+    if '-e' in sys.argv and compiled[-1] != '\x05':
         start = time.time()
         run(compiled, env, code)
-        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} in {round(time.time() - start, 4) * 1000:.1f} ms\n{C.RESET}')
+        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
 
     # Caching
-    if caching:
-        with open('_cache_.pkl', 'wb') as file:
-            pickle.dump([*caches, cache][:3], file)
+    with open('_cache_.pkl', 'wb') as file:
+        cached['caches'] = [*caches, cache][-3:]
+        pickle.dump(cached, file)
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
@@ -440,15 +434,3 @@ if __name__ == '__main__':
             f.write(compiled)
 
     input('Press enter to exit.')
-
-# Executable command: pyinstaller --onefile --icon="C:\Users\nekta\Downloads\apricot.png" --distpath="C:\Program Files\Apricot" Apricot.py
-# Executable run: Apricot -p C:\Users\nekta\PycharmProjects\Apricot\code.apr -e
-
-"""Currently trying to get local variables. The problem is locals() is impossible to edit. I have tried executing it but it isn't correctly updating locals(). Sometimes it may seem like it works
-such as when using return, but this is because some functions are my builtin functions which handle it better. I can't replace the code because I would have to reexecute, which I haven't tried
-yet but it would not work well running a user's scipt twice. There are some quick fixes of using globals(), but this would remove scopes entirely. I could also remove the built-in variable
-creation function, but that would remove a main part of Apricot. Maybe I could use some library to type check but this probably doesn't exist in a way I could use.
-
-My current fix is to require the user to put ~var before local variables then use the compiler to replace it with globals()[var]. This actually works very well and the variables are not 
-accesable outside of the scope. THe ~ isn't needed for the return function.
-"""

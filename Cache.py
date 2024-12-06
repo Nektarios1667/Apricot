@@ -1,4 +1,7 @@
+import re
 import time
+import functools
+
 
 class Cache:
     def __init__(self):
@@ -23,3 +26,16 @@ class Cache:
 
     def __eq__(self, other):
         return self.code == other.code
+
+def outputs(apricode: str, persistents):
+    # Compile regex patterns once
+    stringPattern = re.compile(r'''(["']).*?\1''')
+    commentPattern = re.compile(r'//.*')
+
+    # Replace strings and comments
+    altered = stringPattern.sub('"There once was a string..."', apricode)
+    altered = commentPattern.sub('// There once was a comment...', altered)
+
+    # Check for any persistent pattern match
+    answer = bool(persistents.search(altered))
+    return answer
