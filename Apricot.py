@@ -384,12 +384,12 @@ if __name__ == '__main__':
 
     # Cache loading
     try:
-        with open('_cache_.pkl', 'rb') as file:
+        with open('.cache/_cache_.pkl', 'rb') as file:
             cached = pickle.load(file)
             caches = cached['caches']
             regexes = cached['regexes']
     except Exception:
-        with open('_cache_.pkl', 'wb') as file:
+        with open('.cache/_cache_.pkl', 'wb') as file:
             cached = {'caches': [], 'regexes': {'persistents': re.compile(OUTPUTS, re.VERBOSE)}}
             pickle.dump(cached, file)
             caches = []
@@ -405,7 +405,7 @@ if __name__ == '__main__':
         if cache.compare(code):
             compiled = cache.grab()
             _, env, _ = apricompile('')
-            print(f'{C.CYAN}Uncached "{sys.argv[1]}.apc" [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
+            print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
             break
     else:
         # Compilation
@@ -424,7 +424,7 @@ if __name__ == '__main__':
         print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
 
     # Caching
-    with open('_cache_.pkl', 'wb') as file:
+    with open('.cache/_cache_.pkl', 'wb') as file:
         cached['caches'] = [*caches, cache][-3:]
         pickle.dump(cached, file)
 
