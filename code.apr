@@ -6,16 +6,18 @@ const: pi = 3.1415926;
 class improvedString inherits str:
     func improvedString(value):
         this.value = value;
-
+    
     func int setChar(char, idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
         return this.value;
+       
 
 func int factorial(value):
     int: product = 1;
 
     for num :: range(2, value + 1):
         ~product = ~product * num;
+    
 
     return ~product;
 
@@ -27,11 +29,13 @@ int: n = 0;
 while n**2 < 100:
     n += 1;
 
+
 try:
     int: age = <int '12.0')>;
 
 catch:
     log('Value not a number.');
+
 
 int: number = 0;
 pointer: point = @number;
