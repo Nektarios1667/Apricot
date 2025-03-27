@@ -3,13 +3,11 @@ from Colors import ColorText as C
 from Library import Library
 import os
 import Cache
-from Cache import outputs
 import re
-from Pointers import Pointer as pointer
+from Pointers import Pointer
 
 
 class Compiler:
-
     @staticmethod
     def inject(phrase: str):
         """
@@ -23,44 +21,6 @@ class Compiler:
         for f, fill in enumerate(strings):
             phrase = phrase.replace(f'\x1a@{f}', fill)
         return phrase
-
-    @staticmethod
-    def getline(l: int, phrase: str):
-        """
-        Returns the line of the code based on l. Note: the line numbers start at 1
-        :param phrase:
-        :param l:
-        :return:
-        """
-        while '\n\n' in phrase:
-            phrase = phrase.replace('\n\n', '\n// There once was a double newline...\n')
-
-        return phrase.splitlines()[l - 1]
-
-    @staticmethod
-    def bracesConvert(apricode: str):
-        lines = apricode.splitlines()
-        result = []
-        indents = [0]  # Stack to track current indentation levels
-
-        for line in lines:
-            # Check opening
-            if line.strip().endswith('{'):
-                headerIndent = len(line) - len(line.lstrip('\t'))
-                result.append(line.replace('{', ':'))  # Remove `{`
-                indents.append(headerIndent + 1)
-                continue
-
-            # Check closing
-            if line.strip().endswith('}'):
-                line = line.replace('}', '')
-                indents.pop()
-
-            # Regular line
-            currentIndent = indents
-            result.append('\t' * currentIndent[-1] + line.lstrip())
-
-        return "\n".join(result)
 
     @staticmethod
     def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
@@ -127,11 +87,12 @@ class Compiler:
                 Compiler.error('LibraryError', line, l + 1)
 
         # Running
-        compiled, importing, _ = Compiler.apricompile(code, None)
-        exec(compiled, importing)
+        env = {'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
+        compiled, _ = Compiler.apricompile(code)
+        exec(compiled, env)
 
         # Clean globals
-        for var, val in dict(importing).items():
+        for var, val in dict(env).items():
             if callable(val):
                 setattr(library, var, val)
 
@@ -175,26 +136,18 @@ class Compiler:
             Compiler.error('CompilationError', 'An error occurred during compilation', l + 1)
 
     @staticmethod
-    def apricompile(code: str, cached: dict | None):
+    def apricompile(code: str):
         """
         Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
-        compiled seudo-Python code.
-        :param cached:
+        compiled code.
         :param code:
         :return:
         """
         global strings, varTypes, altered, constants
 
-        # Starting enviroment
-        env = {'log': print, 'load': Compiler.load, 'pointer': pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
-
         # Blank code
         if not code:
-            return '', env, Cache.Snapshot()
-
-        # Checking if script is all internal
-        if cached and not outputs(code, cached['regexes']['persistents']):
-            return '# There was some code...\x05', env, Cache.Snapshot()
+            return '', Cache.Snapshot()
 
         # Variables
         constants = {}
@@ -203,7 +156,7 @@ class Compiler:
         strings = []
         direct = {r'(switch ([^:]+):)':             'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( .+)?:)': 'except \x1a:1:',
                   r'(for (\w[\w\d_]*) ?:: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
-                  r'(using (.*):)':                 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
+                  r'(using (.*):)':                 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
                   r'(noop;())':                     'pass', r'(\|(.+), *(.+), *(.+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)'}
         syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
         # nameErrors = [r'globals\(\)', r'locals\(\)']
@@ -262,7 +215,7 @@ class Compiler:
                     Compiler.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.')
 
         # Pull classes to use for rest of code
-        classes = ['pointer', 'function']
+        classes = ['Pointer', 'function']
         classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', altered))
         classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
@@ -362,6 +315,6 @@ class Compiler:
 
         # Cache
         cache = Cache.Snapshot()
-        cache.save(code, altered, env)
+        cache.save(code, altered)
 
-        return altered, env, cache
+        return altered, cache

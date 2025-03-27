@@ -36,7 +36,7 @@ catch:
 
 
 int: number = 0;
-pointer: point = @number;
+Pointer: point = @number;
 number = number + 1;
 log(^point);
 

@@ -4,7 +4,7 @@ from Colors import ColorText as C
 from Compiler import Compiler
 from Library import *
 from Cache import CacheLoader
-
+from Pointers import Pointer
 
 if __name__ == '__main__':
     # Global var setup
@@ -13,40 +13,35 @@ if __name__ == '__main__':
     classes = []
     constants = {}
     altered = ''
+    env = {'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
 
-    # Cache loading
-    cached, snapshots, regexes = CacheLoader.load()
+    # Time
+    start = time.perf_counter()
 
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
 
-    # Compile and report time
-    start = time.time()
-    for snap in snapshots:
-        if snap.compare(code):
-            compiled = snap.grab()
-            _, env, snapshot = Compiler.apricompile('', cached)
-            print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
-            break
+    # Load cache
+    cache = CacheLoader.find(code)
+    if "-nocache" not in sys.argv and cache is not None:
+        compiled = cache.apricode
+        caching = None
+        print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
+    # Recompile
     else:
-        # Compilation
-        compiled, env, snapshot = Compiler.apricompile(code, cached)
-
-        # Messages
-        if compiled[-1] == '\x05':
-            print(f'{C.CYAN}Skipping execution of internal code [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
-        else:
-            print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
+        compiled, caching = Compiler.apricompile(code)
+        print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
     # Execute the compiled code
     if '-e' in sys.argv and compiled[-1] != '\x05':
-        start = time.time()
+        start = time.perf_counter()
         exec(compiled, env, env)
-        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{round(time.time() - start, 4) * 1000:.1f} ms]\n{C.RESET}')
+        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
     # Caching
-    CacheLoader.store(cached, snapshot)
+    if "-nocache" not in sys.argv and caching is not None:
+        CacheLoader.store(caching)
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
