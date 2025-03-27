@@ -151,7 +151,7 @@ class Compiler:
         """
         global varTypes, altered
 
-        value = eval(value, env)
+        # value = eval(value, env)
         if varType:
             varType = eval(varType, env)
 
@@ -166,7 +166,7 @@ class Compiler:
                 Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
             elif name not in env:
                 Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
-            elif not isinstance(value, type(env[value])):
+            elif not isinstance(value, type(env[name])):
                 Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{type(env[value])}- but value is -{type(value).__name__}-')
 
         try:
@@ -193,10 +193,8 @@ class Compiler:
             return '', env, Cache.Snapshot()
 
         # Checking if script is all internal
-        if cached:
-            regexes = cached['regexes']
-            if not outputs(code, regexes['persistents']):
-                return '# There was some code...\x05', env, Cache.Snapshot()
+        if cached and not outputs(code, cached['regexes']['persistents']):
+            return '# There was some code...\x05', env, Cache.Snapshot()
 
         # Variables
         constants = {}
@@ -206,7 +204,7 @@ class Compiler:
         direct = {r'(switch ([^:]+):)':             'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( .+)?:)': 'except \x1a:1:',
                   r'(for (\w[\w\d_]*) ?:: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
                   r'(using (.*):)':                 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
-                  r'(noop;())':                     'pass', r'(\|(\d+), *(\d+), *(\d+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)'}
+                  r'(noop;())':                     'pass', r'(\|(.+), *(.+), *(.+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)'}
         syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
         # nameErrors = [r'globals\(\)', r'locals\(\)']
         nameErrors = []
@@ -254,7 +252,7 @@ class Compiler:
         # Local variables
         for l, line in enumerate(altered.splitlines()):
             for var in re.findall(r'~[a-zA-Z_][\w_]*', line):
-                altered = altered.replace(var, f'globals()["{var[1:]}"]')
+                altered = altered.replace(var, f'locals()["{var[1:]}"]')
 
         # Name errors
         for l, line in enumerate(altered.splitlines()):
@@ -302,13 +300,13 @@ class Compiler:
         for l, line in enumerate(altered.splitlines()):
             variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
             for variable in variables:
-                altered = altered.replace(variable[0], f'variable("{variable[2]}", "{variable[3]}", {l}, locals(), "{variable[1]}")')
+                altered = altered.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
 
         # Plain var declarations
         for l, line in enumerate(altered.splitlines()):
-            plainVars = re.findall(r'(\n([a-zA-Z_][\w_]*) *= *(\S*);)', line)
+            plainVars = re.findall(r'((\w+) *= *([^;]+);)', line)
             for plain in plainVars:
-                altered = altered.replace(plain[0], f'variable("{plain[1]}", "{plain[2]}", {l}, locals())')
+                altered = altered.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
         # __init__ keyword errors
         wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)

@@ -1,25 +1,23 @@
 include math;
 import functions;
 
-const: pi = 3.1415926;
+//const: pi = 3.1415926;
 
 class improvedString inherits str:
     func improvedString(value):
         this.value = value;
     
-    func int setChar(char, idx):
+    func str setChar(char, idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
         return this.value;
        
 
 func int factorial(value):
     int: product = 1;
+    for num :: |2, value + 1, 1|:
+        product = product * num;
 
-    for num :: range(2, value + 1):
-        ~product = ~product * num;
-    
-
-    return ~product;
+    return product;
 
 
 for i :: |0, 10, 2|:
@@ -31,7 +29,7 @@ while n**2 < 100:
 
 
 try:
-    int: age = <int '12.0')>;
+    int: age = <int '12.0'>;
 
 catch:
     log('Value not a number.');
@@ -41,4 +39,5 @@ int: number = 0;
 pointer: point = @number;
 number = number + 1;
 log(^point);
-log(pi);
+
+//log(pi);
