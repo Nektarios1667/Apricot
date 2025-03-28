@@ -33,8 +33,13 @@ if __name__ == '__main__':
         compiled, caching = Compiler.apricompile(code)
         print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
+    # Write the compiled code to a file if specified by -w option
+    if '-w' in sys.argv:
+        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
+            f.write(compiled)
+
     # Execute the compiled code
-    if '-e' in sys.argv and compiled[-1] != '\x05':
+    if '-e' in sys.argv:
         start = time.perf_counter()
         exec(compiled, env, env)
         print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
@@ -42,10 +47,5 @@ if __name__ == '__main__':
     # Caching
     if "-nocache" not in sys.argv and caching is not None:
         CacheLoader.store(caching)
-
-    # Write the compiled code to a file if specified by -w option
-    if '-w' in sys.argv:
-        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-            f.write(compiled)
 
     input('Press enter to exit.')

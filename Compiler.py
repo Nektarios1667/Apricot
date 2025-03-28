@@ -154,14 +154,14 @@ class Compiler:
         altered = code
         varTypes = {}
         strings = []
-        direct = {r'(switch ([^:]+):)':             'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( .+)?:)': 'except \x1a:1:',
+        direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(for (\w[\w\d_]*) ?:: ?(.*):)': 'for \x1a:1 in \x1a:2:', r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
-                  r'(using (.*):)':                 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
-                  r'(noop;())':                     'pass', r'(\|(.+), *(.+), *(.+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)'}
+                  r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
+                  r'(noop;())': 'pass', r'(\|(.+), *(.+), *(.+)\|)': 'range(\x1a:1, \x1a:2, \x1a:3)', r'((def +\w+)\(this)': '\x1a:1(self'}
         syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
         # nameErrors = [r'globals\(\)', r'locals\(\)']
         nameErrors = []
-        syntaxPhrase = [r'\bFalse\b', r'\bTrue\b']
+        syntaxPhrase = [r'\bFalse\b', r'\bTrue\b', r'func +\w+ +\w+\(self']
         directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
         # Comments
@@ -191,28 +191,23 @@ class Compiler:
         # Syntax keyword errors
         for l, line in enumerate(altered.splitlines()):
             for syn in syntax:
-                found = re.findall(syn, line)
+                found = re.findall(re.escape(syn), line)
                 if found:
-                    Compiler.error('SyntaxError', found[0], l + 1)
+                    Compiler.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Syntax phrase errors
         for l, line in enumerate(altered.splitlines()):
             for syn in syntaxPhrase:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('SyntaxError', found[0], l + 1)
-
-        # Local variables
-        for l, line in enumerate(altered.splitlines()):
-            for var in re.findall(r'~[a-zA-Z_][\w_]*', line):
-                altered = altered.replace(var, f'locals()["{var[1:]}"]')
+                    Compiler.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Name errors
         for l, line in enumerate(altered.splitlines()):
             for syn in nameErrors:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.')
+                    Compiler.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.', line=line)
 
         # Pull classes to use for rest of code
         classes = ['Pointer', 'function']
@@ -247,43 +242,7 @@ class Compiler:
         # Functions
         functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
         for func in functions:
-            altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}, *_: object) -> {func[2] if func[2] != "null" else "None"}:')
-
-        # Variable types
-        for l, line in enumerate(altered.splitlines()):
-            variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
-            for variable in variables:
-                altered = altered.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
-
-        # Plain var declarations
-        for l, line in enumerate(altered.splitlines()):
-            plainVars = re.findall(r'((\w+) *= *([^;]+);)', line)
-            for plain in plainVars:
-                altered = altered.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
-
-        # __init__ keyword errors
-        wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
-        if wrongInits:
-            Compiler.error('SyntaxError', f'__init__', Compiler.findLine('__init__', altered))
-
-        # Replacing constructor with __init__
-        inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
-        for init in inits:
-            altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self, {init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
-
-        # Switch replacements
-        for apr, py in direct.items():
-            while re.findall(apr, altered):
-                for found in re.findall(apr, altered):
-                    repl = py
-                    for p, part in enumerate(found):
-                        repl = repl.replace(f'\x1a:{p}', part)
-
-                    altered = altered.replace(found[0], repl)
-
-        # Switch phrase replacements
-        for apr, py in directPhrase.items():
-            altered = re.sub(apr, py, altered)
+            altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
 
         # Constants
         for l, line in enumerate(altered.splitlines()):
@@ -301,6 +260,42 @@ class Compiler:
         for const, value in constants.items():
             for repl in re.findall(fr'\b{const}\b', altered):
                 altered = altered.replace(repl, value)
+
+        # Variable types
+        for l, line in enumerate(altered.splitlines()):
+            variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
+            for variable in variables:
+                altered = altered.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
+
+        # Plain var declarations
+        for l, line in enumerate(altered.splitlines()):
+            plainVars = re.findall(r'(([^. ]\w+) *= *([^;]+);)', line)
+            for plain in plainVars:
+                altered = altered.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
+
+        # __init__ keyword errors
+        wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
+        if wrongInits:
+            Compiler.error('SyntaxError', f'__init__', Compiler.findLine('__init__', altered))
+
+        # Replacing constructor with __init__
+        inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
+        for init in inits:
+            altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self{", " if init[4] else ""}{init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
+
+        # Switch replacements
+        for apr, py in direct.items():
+            while re.findall(apr, altered):
+                for found in re.findall(apr, altered):
+                    repl = py
+                    for p, part in enumerate(found):
+                        repl = repl.replace(f'\x1a:{p}', part)
+
+                    altered = altered.replace(found[0], repl)
+
+        # Switch phrase replacements
+        for apr, py in directPhrase.items():
+            altered = re.sub(apr, py, altered)
 
         # Inject strings
         for f, fill in enumerate(strings):
