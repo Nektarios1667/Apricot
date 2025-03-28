@@ -14,13 +14,13 @@ class improvedString inherits str:
 
 func int factorial(value):
     int: product = 1;
-    for num :: |2, value + 1, 1|:
+    for num in |2, value + 1, 1|:
         product = product * num;
 
     return product;
 
 
-for i :: |0, 10, 2|:
+for i in |0, 10, 2|:
     log(factorial(i));
 
 int: n = 0;
@@ -34,7 +34,7 @@ catch:
     log('Value not a number.');
 
 
-Function: fact = "factorial";
+Function: fact = factorial;
 log(fact(2));
 
 int: number = 0;
