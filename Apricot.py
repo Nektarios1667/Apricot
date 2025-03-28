@@ -1,3 +1,4 @@
+from typing import Callable
 import sys
 import time
 from Colors import ColorText as C
@@ -13,7 +14,7 @@ if __name__ == '__main__':
     classes = []
     constants = {}
     altered = ''
-    env = {'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
+    env = {'Function': Callable, 'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
 
     # Time
     start = time.perf_counter()

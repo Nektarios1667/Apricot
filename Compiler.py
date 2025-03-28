@@ -210,7 +210,7 @@ class Compiler:
                     Compiler.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.', line=line)
 
         # Pull classes to use for rest of code
-        classes = ['Pointer', 'function']
+        classes = ['Pointer', 'Function']
         classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', altered))
         classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
