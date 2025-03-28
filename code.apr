@@ -2,6 +2,7 @@ include math;
 import functions;
 
 const: PI = 3.1415926;
+float: PI = 3.14;
 
 class improvedString inherits str:
     func improvedString(value):

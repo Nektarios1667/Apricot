@@ -40,6 +40,9 @@ if __name__ == '__main__':
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
             f.write(compiled)
 
+    # Final env changes
+    env["__code"] = code
+
     # Execute the compiled code
     if '-e' in sys.argv:
         start = time.perf_counter()

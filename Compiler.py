@@ -27,7 +27,7 @@ class Compiler:
         global altered, code
 
         # If line isn't specified find automatically
-        line = line or ""
+        line = line or "N/A"
 
         # Printing and closing
         log(f'{C.RED}{error}: "{Compiler.inject(line.strip())}" - "{Compiler.inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
@@ -39,18 +39,33 @@ class Compiler:
         sys.exit(-1)
 
     @staticmethod
-    def findLine(phrase: str, paragraph: str):
+    def searchLine(phrase: str, code: str):
         """
-        Finds the line number of the phrase in the given paragraph. Note: the line numbers start at 1
+        Finds the line number of the phrase in the given paragraph. Note: the line numbers start at 1.
         :param phrase:
-        :param paragraph:
+        :param code:
         :return:
         """
-        lines = paragraph.splitlines()
+        lines = code.splitlines()
         for l, line in enumerate(lines):
             if phrase in line:
                 return l + 1
         return "N/A"
+
+    @staticmethod
+    def getLine(line: int, code: str):
+        """
+        Gets the line based on the index. Note: the line numbers start at 1.
+        :param line:
+        :param code:
+        :return:
+        """
+        # Double lines
+        while "\n\n" in code:
+            code = code.replace('\n\n', '\n//\n')
+
+        # Return
+        return code.splitlines()[line - 1]
 
     @staticmethod
     def load(file: str):
@@ -112,24 +127,25 @@ class Compiler:
         """
         global varTypes, altered
         constants = env["_constants"]
+        line = Compiler.getLine(l + 1, env["__code"])
 
         # value = eval(value, env)
         if varType:
             varType = eval(varType, env)
 
             if name in varTypes:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created')
+                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created', line=line)
             elif name in constants:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
+                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
             elif not isinstance(value, varType):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-')
+                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
         else:
             if name in constants:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
+                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
             elif name not in env:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
+                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created', line=line)
             elif not isinstance(value, type(env[name])):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[value])}\x1a- but value is -\x1a{type(value).__name__}\x1a-')
+                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[value])}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
 
         try:
             env[name] = value
@@ -233,7 +249,7 @@ class Compiler:
         # Wrong __init__ with return type specified
         wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', altered)
         if wrongInits:
-            Compiler.error('SyntaxError', wrongInits[0][4], Compiler.findLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
+            Compiler.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
 
         # Correct __init__ adding return type
         replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', altered)
@@ -276,7 +292,7 @@ class Compiler:
         # __init__ keyword errors
         wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
         if wrongInits:
-            Compiler.error('SyntaxError', f'__init__', Compiler.findLine('__init__', altered))
+            Compiler.error('SyntaxError', f'__init__', Compiler.searchLine('__init__', altered))
 
         # Replacing constructor with __init__
         inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
