@@ -34,7 +34,7 @@ catch:
     log('Value not a number.');
 
 
-Function: fact = factorial;
+Function: fact = "factorial";
 log(fact(2));
 
 int: number = 0;

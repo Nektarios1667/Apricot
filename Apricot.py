@@ -1,11 +1,10 @@
-from typing import Callable
 import sys
 import time
 from Colors import ColorText as C
 from Compiler import Compiler
 from Library import *
 from Cache import CacheLoader
-from Pointers import Pointer
+import Builtins
 
 if __name__ == '__main__':
     # Global var setup
@@ -14,7 +13,7 @@ if __name__ == '__main__':
     classes = []
     constants = {}
     altered = ''
-    env = {'Function': Callable, 'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
+    env = Builtins.defaultEnv
 
     # Time
     start = time.perf_counter()

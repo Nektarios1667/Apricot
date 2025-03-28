@@ -6,7 +6,6 @@ import Cache
 import re
 from Pointers import Pointer
 
-
 class Compiler:
     @staticmethod
     def inject(phrase: str):
@@ -24,13 +23,14 @@ class Compiler:
 
     @staticmethod
     def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
+        from Builtins import log
         global altered, code
 
         # If line isn't specified find automatically
         line = line or "Unknown line"
 
         # Printing and closing
-        print(f'{C.RED}{error}: "{Compiler.inject(line.strip())}" - "{Compiler.inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
+        log(f'{C.RED}{error}: "{Compiler.inject(line.strip())}" - "{Compiler.inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
 
         if '-w' in sys.argv:
             with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
@@ -47,9 +47,9 @@ class Compiler:
         :return:
         """
         lines = paragraph.splitlines()
-        for i, line in enumerate(lines):
+        for l, line in enumerate(lines):
             if phrase in line:
-                return i + 1
+                return l + 1
         return "N/A"
 
     @staticmethod
@@ -121,14 +121,14 @@ class Compiler:
             elif name in constants:
                 Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
             elif not isinstance(value, varType):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{varType.__name__}- but value is -{type(value).__name__}-')
+                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-')
         else:
             if name in constants:
                 Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant')
             elif name not in env:
                 Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created')
             elif not isinstance(value, type(env[name])):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -{type(env[value])}- but value is -{type(value).__name__}-')
+                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[value])}\x1a- but value is -\x1a{type(value).__name__}\x1a-')
 
         try:
             env[name] = value
