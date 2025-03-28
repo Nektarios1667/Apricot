@@ -5,11 +5,13 @@ import pickle
 
 class Snapshot:
     def __init__(self):
+        self.consts = None
         self.code = None
         self.apricode = None
         self.timestamp = None
 
-    def save(self, code: str, apricode: str):
+    def save(self, code: str, apricode: str, consts: dict):
+        self.consts = consts
         self.code = code
         self.apricode = apricode
         self.timestamp = time.time()

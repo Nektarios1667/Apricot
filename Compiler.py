@@ -27,7 +27,7 @@ class Compiler:
         global altered, code
 
         # If line isn't specified find automatically
-        line = line or "Unknown line"
+        line = line or ""
 
         # Printing and closing
         log(f'{C.RED}{error}: "{Compiler.inject(line.strip())}" - "{Compiler.inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
@@ -88,7 +88,7 @@ class Compiler:
 
         # Running
         env = {'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
-        compiled, _ = Compiler.apricompile(code)
+        compiled, _, _ = Compiler.apricompile(code)
         exec(compiled, env)
 
         # Clean globals
@@ -111,6 +111,7 @@ class Compiler:
         :return:
         """
         global varTypes, altered
+        constants = env["_constants"]
 
         # value = eval(value, env)
         if varType:
@@ -143,7 +144,7 @@ class Compiler:
         :param code:
         :return:
         """
-        global strings, varTypes, altered, constants
+        global strings, varTypes, altered
 
         # Blank code
         if not code:
@@ -258,8 +259,7 @@ class Compiler:
 
         # Constant replacements
         for const, value in constants.items():
-            for repl in re.findall(fr'\b{const}\b', altered):
-                altered = altered.replace(repl, value)
+            altered = re.sub(rf'\b{const}(?! *=)\b', value, altered)
 
         # Variable types
         for l, line in enumerate(altered.splitlines()):
@@ -310,6 +310,6 @@ class Compiler:
 
         # Cache
         cache = Cache.Snapshot()
-        cache.save(code, altered)
+        cache.save(code, altered, constants)
 
-        return altered, cache
+        return altered, cache, constants

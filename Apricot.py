@@ -27,10 +27,12 @@ if __name__ == '__main__':
     if "-nocache" not in sys.argv and cache is not None:
         compiled = cache.apricode
         caching = None
+        env["_constants"] = cache.consts
         print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
     # Recompile
     else:
-        compiled, caching = Compiler.apricompile(code)
+        compiled, caching, consts = Compiler.apricompile(code)
+        env["_constants"] = consts
         print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
     # Write the compiled code to a file if specified by -w option
