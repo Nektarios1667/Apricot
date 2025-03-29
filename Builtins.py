@@ -6,6 +6,7 @@ from typing import Callable
 from Library import Library
 from Pointers import Pointer
 from Colors import ColorText as C
+from Colors import StyleText as S
 
 def inject(phrase: str):
     """
@@ -20,14 +21,18 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
-def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
+def error(error: str, line: str, l: int, extra: str = '', description: str = ''):
     from Compiler import compiled
+    from Apricot import code
 
-    # If line isn't specified find automatically
+    # If line isn't specified
     line = line or "N/A"
 
     # Printing and closing
-    log(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
+    if description:
+        log(f'{C.RED}{error}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
+    else:
+        log(f'{C.RED}{error}: "{inject(line.strip())}" @ line {l}\n{extra}{C.RESET}')
 
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
@@ -35,12 +40,14 @@ def error(error: str, description: str, l: int, extra: str = '', line: str = '')
 
     sys.exit(-1)
 
-def warn(warning: str, description: str, l: int, extra: str = '', line: str = ''):
+def warn(warning: str, line: str, l: int, extra: str = '', description: str = ''):
     # If line isn't specified find automatically
     line = line or "N/A"
-    # Printing and closing
-    log(f'{C.YELLOW}{warning}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
-
+    # Printing
+    if description:
+        log(f'{C.YELLOW}{warning}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
+    else:
+        log(f'{C.YELLOW}{warning}: "{inject(line.strip())}" @ line {l}\n{extra}{C.RESET}')
 
 def getLine(line: int, code: str):
     """
@@ -130,21 +137,21 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
         varType = eval(varType, env)
 
         if name in constants:
-            error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
+            error('VariableError', line, l + 1, extra=f'Variable "{name}" is already a constant', description=name)
         elif not isinstance(value, varType):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
+            error('TypeError', line, l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
     else:
         if name in constants:
-            error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
+            error('VariableError', line, l + 1, extra=f'Variable "{name}" is already a constant', description=name)
         elif name not in env:
-            error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created', line=line)
+            error('VariableError', line, l + 1, extra=f'Variable "{name}" has not yet been created', description=name)
         elif not isinstance(value, type(env[name])):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
+            error('TypeError', line, l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
 
     try:
         env[name] = value
     except Exception as e:
-        error('CompilationError', 'An error occurred during compilation', l + 1)
+        error('CompilationError', f"{S.BOLDERLINE}Recreated Line:{S.UNBOLDERLINE} {name} = {value}", l + 1, extra='An error occurred during compilation')
 
 
 def log(*values: object, sep: str | None = "\n", end : str | None = "\n", flush: bool = False):

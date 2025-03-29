@@ -27,7 +27,6 @@ func int factorial(value):
 
 // Function call
 log(factorial(10));
-
 log("this should have a warning even if it looks like there is a comment //")
 
 // While loop

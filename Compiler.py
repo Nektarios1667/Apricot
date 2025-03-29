@@ -68,7 +68,7 @@ class Compiler:
                 continue
 
             if line.strip()[-1] not in [':', ';']:
-                Builtins.warn('EOLError', '', l + 1, line=Builtins.getLine(l + 1, code))
+                Builtins.warn('EOLError', Builtins.getLine(l + 1, code), l + 1)
 
         # Comments
         for comm in re.findall(r'//.*', compiled):
@@ -79,21 +79,21 @@ class Compiler:
             for syn in syntax:
                 found = re.findall(re.escape(syn), line)
                 if found:
-                    Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
+                    Builtins.error('SyntaxError', line, l + 1, description=found[0], extra="Bad phrase.")
 
         # Syntax phrase errors
         for l, line in enumerate(compiled.splitlines()):
             for syn in syntaxPhrase:
                 found = re.findall(syn, line)
                 if found:
-                    Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
+                    Builtins.error('SyntaxError', line, l + 1, description=found[0], extra="Bad phrase.")
 
         # Name errors
         for l, line in enumerate(compiled.splitlines()):
             for syn in nameErrors:
                 found = re.findall(syn, line)
                 if found:
-                    Builtins.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.', line=line)
+                    Builtins.error('NameError', line, l + 1, description=found[0], extra='Function {found[0]} not defined.')
 
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
@@ -109,7 +109,7 @@ class Compiler:
         for l, line in enumerate(compiled.splitlines()):
             wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
             if wrongCasts:
-                Builtins.error('SyntaxError', wrongCasts[0][0], l + 1)
+                Builtins.error('SyntaxError', line, l + 1, description=wrongCasts[0][0])
 
         # Type casting
         for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', compiled):
@@ -134,7 +134,7 @@ class Compiler:
         for l, line in enumerate(compiled.splitlines()):
             for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
                 if name in constants:
-                    Builtins.error('ConstantError', name, l + 1, f'Cannot change value of constant "{name}"')
+                    Builtins.error('ConstantError', line, l + 1, description=name, extra='Cannot change value of constant "{name}"')
                 else:
                     constants[name] = value
                     compiled = compiled.replace(full, f'# CONST')
