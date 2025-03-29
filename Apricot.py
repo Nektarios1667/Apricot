@@ -28,7 +28,7 @@ def main():
         print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
     # Recompile
     else:
-        compiled, caching, consts = Compiler.apricompile(code)
+        compiled, caching, consts = Compiler.compile(code)
         env["_constants"] = consts
         print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 

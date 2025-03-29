@@ -21,7 +21,7 @@ class Compiler:
         return "N/A"
 
     @staticmethod
-    def apricompile(code: str):
+    def compile(code: str):
         """
         Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
         compiled code.

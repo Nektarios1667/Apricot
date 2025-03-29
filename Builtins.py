@@ -110,7 +110,7 @@ def load(file: str):
 
     # Running
     env = {'log': print, 'load': load, 'Pointer': Pointer, 'variable': variable, 'null': None, 'true': True, 'false': False}
-    compiled, _, _ = Compiler.apricompile(code)
+    compiled, _, _ = Compiler.compile(code)
     exec(compiled, env)
 
     # Clean globals
