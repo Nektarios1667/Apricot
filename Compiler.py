@@ -10,6 +10,7 @@ from Pointers import Pointer
 
 
 strings = []
+compiled = ''
 class Compiler:
     @staticmethod
     def searchLine(phrase: str, code: str):
@@ -33,7 +34,7 @@ class Compiler:
         :param code:
         :return:
         """
-        global strings, compiles
+        global strings, compiled
 
         # Blank code
         if not code:
@@ -54,7 +55,7 @@ class Compiler:
 
         # Comments
         for comm in re.findall(r'//.*', compiled):
-            compiled = compiled.replace(comm, '# There was a comment...;')
+            compiled = compiled.replace(comm, '# There was a comment...')
 
         # Braces conversions
         # compiled = Compiler.bracesConvert(compiled)
@@ -65,10 +66,10 @@ class Compiler:
             line = line.strip()
 
             # Comments and empty lines
-            if line[:2] in [r'//', '']:
+            if line == '' or line[:2] == "//" or line[0] == "#":
                 continue
 
-            if line[-1] not in [':', ';']:
+            if line.strip()[-1] not in [':', ';']:
                 Builtins.error('LineError', line.strip(), l + 1)
 
         # String replacements

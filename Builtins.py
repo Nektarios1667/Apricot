@@ -21,7 +21,7 @@ def inject(phrase: str):
     return phrase
 
 def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
-    from Compiler import altered
+    from Compiler import compiled
 
     # If line isn't specified find automatically
     line = line or "N/A"
@@ -31,7 +31,7 @@ def error(error: str, description: str, l: int, extra: str = '', line: str = '')
 
     if '-w' in sys.argv:
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-            f.write(altered)
+            f.write(compiled)
 
     sys.exit(-1)
 

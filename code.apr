@@ -1,43 +1,57 @@
 include math;
+include gc;
 import functions;
 
+// Constant definition
 const: PI = 3.1415926;
 
+// Class
 class improvedString inherits str:
+    // Initialization function
     func improvedString(value):
         this.value = value;
 
+    // Method
     func str setChar(char, idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
         return this.value;
 
 
+// Function
 func int factorial(value):
     int: product = 1;
+    // For loop
     for num in |2, value + 1, 1|:
         product = product * num;
 
     return product;
 
-
+// Function call
 log(factorial(10));
 
+// While loop
 int: n = 0;
 while n**2 < 100:
     n += 1;
 
+// Try-catch
 try:
+    // Type casting
     int: age = <int 'thirty four'>;
 catch:
     log('Value not a number.');
 
-
+// Function references
 Function: fact = factorial;
 log(fact(2));
 
+// Pointers
 int: number = 0;
 Pointer: point = @number;
 number = number + 1;
 log(^point);
 
+// Const
 log(PI);
+
+gc.get_stats();
