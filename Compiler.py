@@ -1,4 +1,6 @@
 import sys
+
+import Builtins
 from Colors import ColorText as C
 from Library import Library
 import os
@@ -6,38 +8,10 @@ import Cache
 import re
 from Pointers import Pointer
 
+
+strings = []
+altered = ''
 class Compiler:
-    @staticmethod
-    def inject(phrase: str):
-        """
-        Injects all strings into phrase by replacing \x1a@{#} with the index in the string list.
-        :param phrase:
-        :return:
-        """
-        global strings
-
-        phrase = str(phrase)
-        for f, fill in enumerate(strings):
-            phrase = phrase.replace(f'\x1a@{f}', fill)
-        return phrase
-
-    @staticmethod
-    def error(error: str, description: str, l: int, extra: str = '', line: str = ''):
-        from Builtins import log
-        global altered, code
-
-        # If line isn't specified find automatically
-        line = line or "N/A"
-
-        # Printing and closing
-        log(f'{C.RED}{error}: "{Compiler.inject(line.strip())}" - "{Compiler.inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
-
-        if '-w' in sys.argv:
-            with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-                f.write(altered)
-
-        sys.exit(-1)
-
     @staticmethod
     def searchLine(phrase: str, code: str):
         """
@@ -53,106 +27,6 @@ class Compiler:
         return "N/A"
 
     @staticmethod
-    def getLine(line: int, code: str):
-        """
-        Gets the line based on the index. Note: the line numbers start at 1.
-        :param line:
-        :param code:
-        :return:
-        """
-        # Double lines
-        while "\n\n" in code:
-            code = code.replace('\n\n', '\n//\n')
-
-        # Return
-        return code.splitlines()[line - 1]
-
-    @staticmethod
-    def load(file: str):
-        """
-        Loads Apricot Library file and adds functions to enviroment in the corresposding module.
-        :param file:
-        :return:
-        """
-        # Get file path
-        folder = os.path.dirname(sys.argv[1])
-
-        # Checking file type
-        if not file.endswith('.apl'):
-            Compiler.error('LibraryError', file, -1, extra='Expected file with .apl extension')
-        if not os.path.exists(f'{folder}/{file}'):
-            Compiler.error('LibraryError', file, -1, extra='File not found')
-
-        # Module
-        name = os.path.basename(file)[:-4]
-        library = Library(f'{folder}/{file}')
-
-        # Reading
-        with open(f'{folder}/{file}', 'rb') as f:
-            code = f.read().decode('utf-8', errors='ignore')
-
-        # Checking if the code is valid
-        allowed = ['\t', 'func', 'class', '\n', '    ', '', r'//', 'using', 'import']
-        for l, line in enumerate(code.splitlines()):
-            for allow in allowed:
-                if line.startswith(allow):
-                    break
-
-            else:
-                Compiler.error('LibraryError', line, l + 1)
-
-        # Running
-        env = {'log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
-        compiled, _, _ = Compiler.apricompile(code)
-        exec(compiled, env)
-
-        # Clean globals
-        for var, val in dict(env).items():
-            if callable(val):
-                setattr(library, var, val)
-
-        return {name: library}
-
-    @staticmethod
-    def variable(name: str, value, l: int, env: dict, varType: str = ''):
-        """
-        Built-in function used in compilation to handle variable creation and assignment.
-        :param env:
-        :param name:
-
-        :param value:
-        :param l:
-        :param varType:
-        :return:
-        """
-        global varTypes, altered
-        constants = env["_constants"]
-        line = Compiler.getLine(l + 1, env["__code"])
-
-        # value = eval(value, env)
-        if varType:
-            varType = eval(varType, env)
-
-            if name in varTypes:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already created', line=line)
-            elif name in constants:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
-            elif not isinstance(value, varType):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
-        else:
-            if name in constants:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
-            elif name not in env:
-                Compiler.error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created', line=line)
-            elif not isinstance(value, type(env[name])):
-                Compiler.error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[value])}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
-
-        try:
-            env[name] = value
-        except Exception as e:
-            Compiler.error('CompilationError', 'An error occurred during compilation', l + 1)
-
-    @staticmethod
     def apricompile(code: str):
         """
         Compiles Apricot code into Python code. Returns the compiled code and a dictionary containing the global enviroment variables. The enviroment variables are used during runtime for the
@@ -160,7 +34,7 @@ class Compiler:
         :param code:
         :return:
         """
-        global strings, varTypes, altered
+        global strings, altered
 
         # Blank code
         if not code:
@@ -169,8 +43,6 @@ class Compiler:
         # Variables
         constants = {}
         altered = code
-        varTypes = {}
-        strings = []
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
                   r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
@@ -198,7 +70,7 @@ class Compiler:
                 continue
 
             if line[-1] not in [':', ';']:
-                Compiler.error('LineError', line.strip(), l + 1)
+                Builtins.error('LineError', line.strip(), l + 1)
 
         # String replacements
         for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
@@ -210,21 +82,21 @@ class Compiler:
             for syn in syntax:
                 found = re.findall(re.escape(syn), line)
                 if found:
-                    Compiler.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
+                    Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Syntax phrase errors
         for l, line in enumerate(altered.splitlines()):
             for syn in syntaxPhrase:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
+                    Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Name errors
         for l, line in enumerate(altered.splitlines()):
             for syn in nameErrors:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.', line=line)
+                    Builtins.error('NameError', found[0], l + 1, extra=f'Function {found[0]} not defined.', line=line)
 
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
@@ -240,7 +112,7 @@ class Compiler:
         for l, line in enumerate(altered.splitlines()):
             wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
             if wrongCasts:
-                Compiler.error('SyntaxError', wrongCasts[0][0], l + 1)
+                Builtins.error('SyntaxError', wrongCasts[0][0], l + 1)
 
         # Type casting
         for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', altered):
@@ -249,7 +121,7 @@ class Compiler:
         # Wrong __init__ with return type specified
         wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', altered)
         if wrongInits:
-            Compiler.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
+            Builtins.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
 
         # Correct __init__ adding return type
         replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', altered)
@@ -265,7 +137,7 @@ class Compiler:
         for l, line in enumerate(altered.splitlines()):
             for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
                 if name in constants:
-                    Compiler.error('ConstantError', name, l + 1, f'Cannot change value of constant "{name}"')
+                    Builtins.error('ConstantError', name, l + 1, f'Cannot change value of constant "{name}"')
                 else:
                     constants[name] = value
                     altered = altered.replace(full, f'# CONST')
@@ -285,14 +157,14 @@ class Compiler:
 
         # Plain var declarations
         for l, line in enumerate(altered.splitlines()):
-            plainVars = re.findall(r'(([^. ]\w+) *= *([^;]+);)', line)
+            plainVars = re.findall(r'((?<!this\.|....\S)(\w+) *= *([^;]+);)', line)
             for plain in plainVars:
                 altered = altered.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
         # __init__ keyword errors
         wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
         if wrongInits:
-            Compiler.error('SyntaxError', f'__init__', Compiler.searchLine('__init__', altered))
+            Builtins.error('SyntaxError', f'__init__', Compiler.searchLine('__init__', altered))
 
         # Replacing constructor with __init__
         inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
@@ -321,7 +193,8 @@ class Compiler:
         # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
         # Setup
-        altered = altered + '\n' if altered[-1] != '\n' else altered + ''
+        altered += '\n'
+        # Remove semicolons
         altered = altered.replace(';\n', '\n')
 
         # Cache
