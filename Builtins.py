@@ -1,4 +1,3 @@
-import types
 import os
 import re
 import sys
@@ -6,7 +5,11 @@ from typing import Callable
 from Library import Library
 from Pointers import Pointer
 from Colors import ColorText as C
-from Colors import StyleText as S
+
+code = ''
+def setCode(value: str):
+    global code
+    code = value
 
 def inject(phrase: str):
     """
@@ -21,12 +24,12 @@ def inject(phrase: str):
         phrase = phrase.replace(f'\x1a@{f}', fill)
     return phrase
 
-def error(error: str, line: str, l: int, extra: str = '', description: str = ''):
+def error(error: str, l: int, line: str = '', description: str = '', extra: str = ''):
     from Compiler import compiled
-    from Apricot import code
+    global code
 
     # If line isn't specified
-    line = line or "N/A"
+    line = line or getLine(l, code)
 
     # Printing and closing
     if description:
@@ -40,9 +43,11 @@ def error(error: str, line: str, l: int, extra: str = '', description: str = '')
 
     sys.exit(-1)
 
-def warn(warning: str, line: str, l: int, extra: str = '', description: str = ''):
+def warn(warning: str, l: int, line: str = '', description: str = '', extra: str = ''):
+    global code
+
     # If line isn't specified find automatically
-    line = line or "N/A"
+    line = line or getLine(l, code)
     # Printing
     if description:
         log(f'{C.YELLOW}{warning}: "{inject(line.strip())}" - "{inject(description.strip())}" @ line {l}\n{extra}{C.RESET}')
@@ -63,8 +68,8 @@ def getLine(line: int, code: str):
     # Return
     lines = code.splitlines()
 
-    if lines:
-        return lines[min(line - 1, len(lines) - 1)]
+    if lines and line < len(lines):
+        return lines[line - 1]
     else:
         return "N/A"
 
@@ -81,9 +86,9 @@ def load(file: str):
 
     # Checking file type
     if not file.endswith('.apl'):
-        error('LibraryError', file, -1, extra='Expected file with .apl extension')
+        error('LibraryError', -1, extra='Expected file with .apl extension')
     if not os.path.exists(f'{folder}/{file}'):
-        error('LibraryError', file, -1, extra='File not found')
+        error('LibraryError', -1, extra='File not found')
 
     # Module
     name = os.path.basename(file)[:-4]
@@ -101,7 +106,7 @@ def load(file: str):
                 break
 
         else:
-            error('LibraryError', line, l + 1)
+            error('LibraryError', l + 1)
 
     # Running
     env = {'log': print, 'load': load, 'Pointer': Pointer, 'variable': variable, 'null': None, 'true': True, 'false': False}
@@ -127,31 +132,28 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
     :param varType:
     :return:
     """
-    from Apricot import code
-
     constants = env["_constants"]
-    line = getLine(l + 1, code)
 
     # value = eval(value, env)
     if varType:
         varType = eval(varType, env)
 
         if name in constants:
-            error('VariableError', line, l + 1, extra=f'Variable "{name}" is already a constant', description=name)
+            error('VariableError', l + 1, extra=f'Variable "{name}" is already a constant', description=name)
         elif not isinstance(value, varType):
-            error('TypeError', line, l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
+            error('TypeError', l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
     else:
         if name in constants:
-            error('VariableError', line, l + 1, extra=f'Variable "{name}" is already a constant', description=name)
+            error('VariableError', l + 1, extra=f'Variable "{name}" is already a constant', description=name)
         elif name not in env:
-            error('VariableError', line, l + 1, extra=f'Variable "{name}" has not yet been created', description=name)
+            error('VariableError', l + 1, extra=f'Variable "{name}" has not yet been created', description=name)
         elif not isinstance(value, type(env[name])):
-            error('TypeError', line, l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
+            error('TypeError', l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
 
     try:
         env[name] = value
     except Exception as e:
-        error('CompilationError', f"{S.BOLDERLINE}Recreated Line:{S.UNBOLDERLINE} {name} = {value}", l + 1, extra='An error occurred during compilation')
+        error('CompilationError', -1, line="{S.BOLDERLINE}Recreated Line:{S.UNBOLDERLINE} {name} = {value}", extra='An error occurred during compilation')
 
 
 def log(*values: object, sep: str | None = "\n", end : str | None = "\n", flush: bool = False):

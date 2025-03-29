@@ -6,10 +6,9 @@ from Library import *
 from Cache import CacheLoader
 import Builtins
 
-code = ''
 def main():
-    # Setup
     global code
+    # Setup
     env = Builtins.defaultEnv
 
     # Time
@@ -18,6 +17,7 @@ def main():
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
+        Builtins.setCode(code)
 
     # Load cache
     cache = CacheLoader.find(code)
