@@ -7,8 +7,7 @@ const: PI = 3.1415926;
 
 // Class
 class improvedString inherits str:
-    // Initialization function
-    func improvedString(value):
+    func improvedString(value): // Initialization function
         this.value = value;
 
     // Method
@@ -28,6 +27,8 @@ func int factorial(value):
 
 // Function call
 log(factorial(10));
+
+log("this should have a warning even if it looks like there is a comment //")
 
 // While loop
 int: n = 0;

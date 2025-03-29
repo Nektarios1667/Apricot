@@ -53,12 +53,10 @@ class Compiler:
         syntaxPhrase = [r'\bFalse\b', r'\bTrue\b', r'func +\w+ +\w+\(self']
         directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
-        # Comments
-        for comm in re.findall(r'//.*', compiled):
-            compiled = compiled.replace(comm, '# There was a comment...')
-
-        # Braces conversions
-        # compiled = Compiler.bracesConvert(compiled)
+        # String replacements
+        for s, string in enumerate(re.findall(r'''((["'])[^(?:\2)]+\2)''', compiled)):
+            compiled = compiled.replace(string[0], f'\x1a={s}')
+            strings.append(string[0])
 
         # Semicolons
         for l, line in enumerate(compiled.splitlines()):
@@ -66,16 +64,15 @@ class Compiler:
             line = line.strip()
 
             # Comments and empty lines
-            if line == '' or line[:2] == "//" or line[0] == "#":
+            if line == '' or re.match(r'.*//.*$', line):
                 continue
 
             if line.strip()[-1] not in [':', ';']:
-                Builtins.error('LineError', line.strip(), l + 1)
+                Builtins.warn('EOLError', '', l + 1, line=Builtins.getLine(l + 1, code))
 
-        # String replacements
-        for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', compiled)):
-            compiled = compiled.replace(string[0], f'\x1a={s}')
-            strings.append(string[0])
+        # Comments
+        for comm in re.findall(r'//.*', compiled):
+            compiled = compiled.replace(comm, '# There was a comment...')
 
         # Syntax keyword errors
         for l, line in enumerate(compiled.splitlines()):
@@ -124,9 +121,9 @@ class Compiler:
             Builtins.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), compiled), 'Class constructors should not return anything')
 
         # Correct __init__ adding return type
-        replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', compiled)
+        replInits = re.findall(rf'(([\t ]*)class (\w+)(\([^)]*\))?:([\s\S]*?)func \3\(([^)]*)\):)', compiled)
         for repl in replInits:
-            compiled = compiled.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
+            compiled = compiled.replace(repl[0], f'{repl[1]}class {repl[2]}{repl[3]}:{repl[4]}func null {repl[2]}({repl[5]}):')
 
         # Functions
         functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
