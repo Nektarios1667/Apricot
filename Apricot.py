@@ -2,7 +2,7 @@ import sys
 import time
 from Colors import ColorText as C
 from Compiler import Compiler
-from Library import *
+import os
 from Cache import CacheLoader
 import Builtins
 

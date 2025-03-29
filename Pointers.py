@@ -1,6 +1,3 @@
-from copy import copy
-
-
 class Pointer:
     def __init__(self, var: str, env: dict = None):
         self._env = env
