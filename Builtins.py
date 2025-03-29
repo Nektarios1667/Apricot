@@ -55,7 +55,11 @@ def getLine(line: int, code: str):
 
     # Return
     lines = code.splitlines()
-    return lines[min(line - 1, len(lines) - 1)]
+
+    if lines:
+        return lines[min(line - 1, len(lines) - 1)]
+    else:
+        return "N/A"
 
 def load(file: str):
     """
@@ -116,18 +120,16 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
     :param varType:
     :return:
     """
-    from Compiler import altered
+    from Apricot import code
 
     constants = env["_constants"]
-    line = getLine(l + 1, altered)
+    line = getLine(l + 1, code)
 
     # value = eval(value, env)
     if varType:
         varType = eval(varType, env)
 
-        if name in env:
-            warn('VariableError', name, l + 1, extra=f'Variable "{name}" is already created', line=line)
-        elif name in constants:
+        if name in constants:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" is already a constant', line=line)
         elif not isinstance(value, varType):
             error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)

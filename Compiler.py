@@ -10,7 +10,6 @@ from Pointers import Pointer
 
 
 strings = []
-altered = ''
 class Compiler:
     @staticmethod
     def searchLine(phrase: str, code: str):
@@ -34,7 +33,7 @@ class Compiler:
         :param code:
         :return:
         """
-        global strings, altered
+        global strings, compiles
 
         # Blank code
         if not code:
@@ -42,7 +41,7 @@ class Compiler:
 
         # Variables
         constants = {}
-        altered = code
+        compiled = code
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
                   r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
@@ -54,14 +53,14 @@ class Compiler:
         directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
         # Comments
-        for comm in re.findall(r'//.*', altered):
-            altered = altered.replace(comm, '# There was a comment...;')
+        for comm in re.findall(r'//.*', compiled):
+            compiled = compiled.replace(comm, '# There was a comment...;')
 
         # Braces conversions
-        # altered = Compiler.bracesConvert(altered)
+        # compiled = Compiler.bracesConvert(compiled)
 
         # Semicolons
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             # Strip whitespace
             line = line.strip()
 
@@ -73,26 +72,26 @@ class Compiler:
                 Builtins.error('LineError', line.strip(), l + 1)
 
         # String replacements
-        for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', altered)):
-            altered = altered.replace(string[0], f'\x1a={s}')
+        for s, string in enumerate(re.findall(r'''((["'])[^\2\s]+\2)''', compiled)):
+            compiled = compiled.replace(string[0], f'\x1a={s}')
             strings.append(string[0])
 
         # Syntax keyword errors
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             for syn in syntax:
                 found = re.findall(re.escape(syn), line)
                 if found:
                     Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Syntax phrase errors
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             for syn in syntaxPhrase:
                 found = re.findall(syn, line)
                 if found:
                     Builtins.error('SyntaxError', found[0], l + 1, line=line, extra="Bad phrase.")
 
         # Name errors
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             for syn in nameErrors:
                 found = re.findall(syn, line)
                 if found:
@@ -100,105 +99,105 @@ class Compiler:
 
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
-        classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', altered))
+        classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', compiled))
         classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
         # Class declarations
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? ?:', line):
-                altered = altered.replace(line, f'class {cls[0]}({cls[1]}):')
+                compiled = compiled.replace(line, f'class {cls[0]}({cls[1]}):')
 
         # Remove old type casting
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
             if wrongCasts:
                 Builtins.error('SyntaxError', wrongCasts[0][0], l + 1)
 
         # Type casting
-        for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', altered):
-            altered = altered.replace(cast[0], f'{cast[1]}({cast[2]})')
+        for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', compiled):
+            compiled = compiled.replace(cast[0], f'{cast[1]}({cast[2]})')
 
         # Wrong __init__ with return type specified
-        wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', altered)
+        wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', compiled)
         if wrongInits:
-            Builtins.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), altered), 'Class constructors should not return anything')
+            Builtins.error('SyntaxError', wrongInits[0][4], Compiler.searchLine(wrongInits[0][0].split('\n')[-1].strip(), compiled), 'Class constructors should not return anything')
 
         # Correct __init__ adding return type
-        replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', altered)
+        replInits = re.findall(rf'(class (\w+)(\([^)]*\))?:(\n+[\t ]*)func \2\(([^)]*)\):)', compiled)
         for repl in replInits:
-            altered = altered.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
+            compiled = compiled.replace(repl[0], f'class {repl[1]}{repl[2]}:{repl[3]}func null {repl[1]}({repl[4]}):')
 
         # Functions
-        functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', altered)
+        functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
         for func in functions:
-            altered = altered.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
+            compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
 
         # Constants
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
                 if name in constants:
                     Builtins.error('ConstantError', name, l + 1, f'Cannot change value of constant "{name}"')
                 else:
                     constants[name] = value
-                    altered = altered.replace(full, f'# CONST')
+                    compiled = compiled.replace(full, f'# CONST')
 
         # Tabs
-        altered = altered.replace('\t', '    ')
+        compiled = compiled.replace('\t', '    ')
 
         # Constant replacements
         for const, value in constants.items():
-            altered = re.sub(rf'\b{const}(?! *=)\b', value, altered)
+            compiled = re.sub(rf'\b{const}(?! *=)\b', value, compiled)
 
         # Variable types
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
             for variable in variables:
-                altered = altered.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
+                compiled = compiled.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
 
         # Plain var declarations
-        for l, line in enumerate(altered.splitlines()):
+        for l, line in enumerate(compiled.splitlines()):
             plainVars = re.findall(r'((?<!this\.|....\S)(\w+) *= *([^;]+);)', line)
             for plain in plainVars:
-                altered = altered.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
+                compiled = compiled.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
         # __init__ keyword errors
-        wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', altered)
+        wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', compiled)
         if wrongInits:
-            Builtins.error('SyntaxError', f'__init__', Compiler.searchLine('__init__', altered))
+            Builtins.error('SyntaxError', f'__init__', Compiler.searchLine('__init__', compiled))
 
         # Replacing constructor with __init__
-        inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', altered)
+        inits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)def \2\(([^)]*)\) *-> *(int|float|str|list|tuple|object|bool|None{classNames}) *:)', compiled)
         for init in inits:
-            altered = altered.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self{", " if init[4] else ""}{init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
+            compiled = compiled.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self{", " if init[4] else ""}{init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
 
         # Switch replacements
         for apr, py in direct.items():
-            while re.findall(apr, altered):
-                for found in re.findall(apr, altered):
+            while re.findall(apr, compiled):
+                for found in re.findall(apr, compiled):
                     repl = py
                     for p, part in enumerate(found):
                         repl = repl.replace(f'\x1a:{p}', part)
 
-                    altered = altered.replace(found[0], repl)
+                    compiled = compiled.replace(found[0], repl)
 
         # Switch phrase replacements
         for apr, py in directPhrase.items():
-            altered = re.sub(apr, py, altered)
+            compiled = re.sub(apr, py, compiled)
 
         # Inject strings
         for f, fill in enumerate(strings):
-            altered = altered.replace(f'\x1a={f}', fill)
+            compiled = compiled.replace(f'\x1a={f}', fill)
 
         # Automatic error handling wrap
-        # altered = f'try:\n' + '\n'.join([f'    {line}' for line in altered.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
+        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
 
         # Setup
-        altered += '\n'
+        compiled = f'{compiled}\n'
         # Remove semicolons
-        altered = altered.replace(';\n', '\n')
+        compiled = compiled.replace(';\n', '\n')
 
         # Cache
         cache = Cache.Snapshot()
-        cache.save(code, altered, constants)
+        cache.save(code, compiled, constants)
 
-        return altered, cache, constants
+        return compiled, cache, constants
