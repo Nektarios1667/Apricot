@@ -137,7 +137,7 @@ def variable(name: str, value, l: int, env: dict, varType: str = ''):
         elif name not in env:
             error('VariableError', name, l + 1, extra=f'Variable "{name}" has not yet been created', line=line)
         elif not isinstance(value, type(env[name])):
-            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[value])}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
+            error('TypeError', str(value), l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', line=line)
 
     try:
         env[name] = value
