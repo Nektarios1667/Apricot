@@ -1,15 +1,15 @@
 import sys
 import time
-from Colors import ColorText as C
+from typing import Callable
 from Compiler import Compiler
 import os
 from Cache import CacheLoader
-import Builtins
+from Pointers import Pointer
+from Text import ColorText as C
 
 def main():
-    global code
     # Setup
-    env = Builtins.defaultEnv
+    env = {'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
 
     # Time
     start = time.perf_counter()
@@ -17,7 +17,7 @@ def main():
     # Read and compile the code file
     with open(sys.argv[1], 'r', encoding='utf-8') as f:
         code = f.read()
-        Builtins.setCode(code)
+        Compiler.code = code
 
     # Load cache
     cache = CacheLoader.find(code)

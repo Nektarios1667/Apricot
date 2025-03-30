@@ -1,5 +1,4 @@
 include math;
-include gc;
 import functions;
 
 // Constant definition
@@ -53,5 +52,3 @@ log(^point);
 
 // Const
 log(PI);
-
-gc.get_stats();
