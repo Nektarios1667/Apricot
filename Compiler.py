@@ -36,6 +36,9 @@ class Compiler:
         else:
             Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}')
 
+        # Return back for logging
+        return warning, l, line, description, extra
+
     @staticmethod
     def load(file: str):
         """
@@ -138,7 +141,7 @@ class Compiler:
     @staticmethod
     def compile(code: str):
         """
-        Compiles Apricot code into Python code. Returns the compiled code, a cache, and any defined constants.
+        Compiles Apricot code into Python code. Returns the compiled code, a cache, and any constants.
         :param code:
         :return:
         """
@@ -149,6 +152,7 @@ class Compiler:
             return '', Cache.Snapshot()
     
         # Variables
+        warnings = []
         constants = {}
         compiled = code
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
@@ -177,7 +181,8 @@ class Compiler:
                 continue
     
             if line.strip()[-1] not in [':', ';']:
-                Compiler.warn('EOLError', l + 1)
+                warning = Compiler.warn('EOLError', l + 1)
+                warnings.append(warning)
     
         # Comments
         for comm in re.findall(r'//.*', compiled):
@@ -305,6 +310,6 @@ class Compiler:
     
         # Cache
         cache = Cache.Snapshot()
-        cache.save(code, compiled, constants)
+        cache.save(code, compiled, constants, warnings)
 
         return compiled, cache, constants

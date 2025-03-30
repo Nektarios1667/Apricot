@@ -7,13 +7,15 @@ class Snapshot:
     def __init__(self):
         self.consts = None
         self.code = None
-        self.apricode = None
+        self.compiled = None
         self.timestamp = None
+        self.warnings = None
 
-    def save(self, code: str, apricode: str, consts: dict):
+    def save(self, code: str, compiled: str, consts: dict, warnings: list):
         self.consts = consts
         self.code = code
-        self.apricode = apricode
+        self.compiled = compiled
+        self.warnings = warnings
         self.timestamp = time.time()
 
     def __eq__(self, other):

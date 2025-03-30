@@ -1,11 +1,18 @@
+import inspect
 import sys
 import time
 from typing import Callable
+
+import Cache
 from Compiler import Compiler
 import os
 from Cache import CacheLoader
+import Library
+import Packager
 from Pointers import Pointer
 from Text import ColorText as C
+import Packager
+import Functions as F
 
 def main():
     # Setup
@@ -22,10 +29,17 @@ def main():
     # Load cache
     cache = CacheLoader.find(code)
     if "-nocache" not in sys.argv and cache is not None:
-        compiled = cache.apricode
+        # Load
+        compiled, consts = cache.compiled, cache.consts
         caching = None
         env["_constants"] = cache.consts
+
+        # Load warnings
+        for warning in cache.warnings:
+            Compiler.warn(*warning)
+        # Print uncache
         print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
+
     # Recompile
     else:
         compiled, caching, consts = Compiler.compile(code)
@@ -34,8 +48,19 @@ def main():
 
     # Write the compiled code to a file if specified by -w option
     if '-w' in sys.argv:
+        output = compiled
+        # If embedded
+        if '-s' in sys.argv:
+            # Setup
+            imports = ['re', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
+            embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer]
+            repl = {'Compiler.': '', 'F.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
+            headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
+
+            # Embedded
+            output = Packager.standalone(imports, headers, embeds, compiled, repl)
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-            f.write(compiled)
+            f.write(output)
 
     # Execute the compiled code
     if '-e' in sys.argv:

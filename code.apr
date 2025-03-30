@@ -10,7 +10,7 @@ class improvedString inherits str:
         this.value = value;
 
     // Method
-    func str setChar(char, idx):
+    func str setChar(this, char, idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
         return this.value;
 
