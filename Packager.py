@@ -23,9 +23,10 @@ def getMethods(cls: object):
     """
     return [func for _, func in inspect.getmembers(cls, predicate=inspect.isfunction)]
 
-def standalone(imports: list[str], headers: list[str], embedding: list[typing.Callable], code: str, replacements: dict[str, str] = None):
+def standalone(imports: list[str], headers: list[str], embedding: list[typing.Callable], code: str, replacements: dict[str, str] = None, removals: list[str] = None):
     """
     Creates a standalone python script with the given, imports, headers, embedded functions, code, and any replacements.
+    :param removals:
     :param imports:
     :param headers:
     :param embedding:
@@ -55,4 +56,10 @@ def standalone(imports: list[str], headers: list[str], embedding: list[typing.Ca
     for original, repl in replacements.items():
         output = output.replace(original, repl)
 
-    return output
+    # Removals
+    output = output.splitlines()
+    for l, line in enumerate(output):
+        if line in removals:
+            output.pop(l)
+
+    return '\n'.join(output)

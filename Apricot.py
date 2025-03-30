@@ -58,7 +58,7 @@ def main():
             headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
 
             # Embedded
-            output = Packager.standalone(imports, headers, embeds, compiled, repl)
+            output = Packager.standalone(imports, headers, embeds, compiled, replacements=repl, removals=["@staticmethod"])
         with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
             f.write(output)
 

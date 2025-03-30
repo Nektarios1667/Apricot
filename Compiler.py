@@ -9,6 +9,7 @@ from Pointers import Pointer
 
 class Compiler:
     code = ''
+    compiled = ''
 
     @staticmethod
     def error(error: str, l: int, line: str = '', description: str = '', extra: str = ''):
@@ -17,12 +18,12 @@ class Compiler:
     
         # Printing and closing
         if description:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}')
+            Compiler.log(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
         else:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}')
+            Compiler.log(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
         if '-w' in sys.argv:
             with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-                f.write(compiled)
+                f.write(Compiler.compiled)
     
         sys.exit(-1)
 
@@ -32,9 +33,9 @@ class Compiler:
         line = line or F.getLine(l, Compiler.code)
         # Printing
         if description:
-            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}')
+            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
         else:
-            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}')
+            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
 
         # Return back for logging
         return warning, l, line, description, extra
@@ -145,12 +146,13 @@ class Compiler:
         :param code:
         :return:
         """
-        global compiled
-
         # Blank code
         if not code:
             return '', Cache.Snapshot()
-    
+
+        if code[0] == '$':
+            Compiler.error("Test error", 1)
+
         # Variables
         warnings = []
         constants = {}
@@ -181,7 +183,7 @@ class Compiler:
                 continue
     
             if line.strip()[-1] not in [':', ';']:
-                warning = Compiler.warn('EOLError', l + 1)
+                warning = Compiler.warn('EOLError', l + 1, extra="Missing end of line marker")
                 warnings.append(warning)
     
         # Comments
@@ -193,21 +195,21 @@ class Compiler:
             for syn in syntax:
                 found = re.findall(re.escape(syn), line)
                 if found:
-                    Compiler.error('SyntaxError', l + 1, code, description=found[0], extra="Bad phrase.")
+                    Compiler.error('SyntaxError', l + 1, description=found[0], extra="Bad phrase.")
     
         # Syntax phrase errors
         for l, line in enumerate(compiled.splitlines()):
             for syn in syntaxPhrase:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('SyntaxError', l + 1, code, description=found[0], extra="Bad phrase.")
+                    Compiler.error('SyntaxError', l + 1, description=found[0], extra="Bad phrase.")
     
         # Name errors
         for l, line in enumerate(compiled.splitlines()):
             for syn in nameErrors:
                 found = re.findall(syn, line)
                 if found:
-                    Compiler.error('NameError', l + 1, code, description=found[0], extra='Function {found[0]} not defined.')
+                    Compiler.error('NameError', l + 1, description=found[0], extra='Function {found[0]} not defined.')
     
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
@@ -301,7 +303,8 @@ class Compiler:
             compiled = compiled.replace(f'\x1a={f}', fill)
     
         # Automatic error handling wrap
-        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + '\nexcept Exception as e:\n    exception(e)'
+        compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'
+                                                                                               'e.__traceback__.tb_lineno - 1}\033[0m")')
     
         # Setup
         compiled = f'{compiled}\n'
@@ -311,5 +314,6 @@ class Compiler:
         # Cache
         cache = Cache.Snapshot()
         cache.save(code, compiled, constants, warnings)
+        Compiler.compiled = compiled
 
         return compiled, cache, constants
