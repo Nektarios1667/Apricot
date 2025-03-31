@@ -2,7 +2,6 @@ import inspect
 import sys
 import time
 from typing import Callable
-
 import Cache
 from Compiler import Compiler
 import os
@@ -16,7 +15,7 @@ import Functions as F
 
 def main():
     # Setup
-    env = {'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
+    env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
 
     # Time
     start = time.perf_counter()
@@ -52,7 +51,7 @@ def main():
         # If embedded
         if '-s' in sys.argv:
             # Setup
-            imports = ['re', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
+            imports = ['inspect', 're', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
             embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer]
             repl = {'Compiler.': '', 'F.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
             headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']

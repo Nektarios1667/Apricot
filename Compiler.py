@@ -41,6 +41,15 @@ class Compiler:
         return warning, l, line, description, extra
 
     @staticmethod
+    def giveback(value, returnType, line):
+        if isinstance(value, returnType):
+            return value
+        else:
+            Compiler.error('TypeError', line + 1, extra=f'Expected -{returnType.__name__}- but -{type(value).__name__}- was returned')
+
+        # locals()[inspect.currentframe().f_code.co_name].__annotations__.get('return')
+
+    @staticmethod
     def load(file: str):
         """
         Loads Apricot Library file and adds functions to enviroment in the corresposding module.
@@ -241,11 +250,6 @@ class Compiler:
         for repl in replInits:
             compiled = compiled.replace(repl[0], f'{repl[1]}class {repl[2]}{repl[3]}:{repl[4]}func null {repl[2]}({repl[5]}):')
     
-        # Functions
-        functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
-        for func in functions:
-            compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
-    
         # Constants
         for l, line in enumerate(compiled.splitlines()):
             for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
@@ -264,16 +268,33 @@ class Compiler:
     
         # Variable types
         for l, line in enumerate(compiled.splitlines()):
-            variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+);)', line)]
+            variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+))', line)]
             for variable in variables:
                 compiled = compiled.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
     
         # Plain var declarations
         for l, line in enumerate(compiled.splitlines()):
-            plainVars = re.findall(r'((?<!this\.|....\S)(\w+) *= *([^;]+);)', line)
+            plainVars = re.findall(r'((?<!this\.|....\S)(\w+) *= *([^;]+))', line)
             for plain in plainVars:
                 compiled = compiled.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
-    
+
+        # Function returns
+        current = ''
+        for l, line in enumerate(compiled.splitlines()):
+            # Get function or method
+            func = re.match(fr'func (int|float|str|list|tuple|object|bool|null{classNames}) \w+', line.strip())
+            if func:
+                current = func.group(1)
+                continue
+            returning = re.match('return +([^;]+);', line.strip())
+            if returning:
+                compiled = compiled.replace(returning[0], f'giveback({returning[1]}, {current}, {l})')
+
+        # Functions
+        functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
+        for func in functions:
+            compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
+
         # __init__ keyword errors
         wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', compiled)
         if wrongInits:

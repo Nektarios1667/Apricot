@@ -28,6 +28,10 @@ func int factorial(value):
 log(factorial(10));
 log("this should have a warning even if it looks like there is a comment //")
 
+// Object
+improvedString: imprStr = improvedString("test");
+log(imprStr.setChar('_', 0));
+
 // While loop
 int: n = 0;
 while n**2 < 100:
