@@ -57,7 +57,7 @@ class Compiler:
         :return:
         """
         # Get file path
-        folder = os.path.dirname(sys.argv[1])
+        folder = os.path.dirname(sys.argv[0])
     
         # Checking file type
         if not file.endswith('.apl'):
@@ -324,8 +324,8 @@ class Compiler:
             compiled = compiled.replace(f'\x1a={f}', fill)
     
         # Automatic error handling wrap
-        compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'
-                                                                                               'e.__traceback__.tb_lineno - 1}\033[0m")')
+        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'
+        #                                                                                        'e.__traceback__.tb_lineno - 1}\033[0m")')
     
         # Setup
         compiled = f'{compiled}\n'

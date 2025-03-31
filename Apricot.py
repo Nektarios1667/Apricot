@@ -13,7 +13,7 @@ from Text import ColorText as C
 import Packager
 import Functions as F
 
-def main():
+def apricompile(standalone: bool):
     # Setup
     env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
 
@@ -21,13 +21,13 @@ def main():
     start = time.perf_counter()
 
     # Read and compile the code file
-    with open(sys.argv[1], 'r', encoding='utf-8') as f:
+    with open(sys.argv[2], 'r', encoding='utf-8') as f:
         code = f.read()
         Compiler.code = code
 
     # Load cache
     cache = CacheLoader.find(code)
-    if "-nocache" not in sys.argv and cache is not None:
+    if "--nocache" not in sys.argv and cache is not None:
         # Load
         compiled, consts = cache.compiled, cache.consts
         caching = None
@@ -43,35 +43,69 @@ def main():
     else:
         compiled, caching, consts = Compiler.compile(code)
         env["_constants"] = consts
-        print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
+        print(f'{C.CYAN}Compiled {os.path.basename(sys.argv[2])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
-    # Write the compiled code to a file if specified by -w option
-    if '-w' in sys.argv:
-        output = compiled
-        # If embedded
-        if '-s' in sys.argv:
-            # Setup
-            imports = ['inspect', 're', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
-            embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer]
-            repl = {'Compiler.': '', 'F.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
-            headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
+    # Write the compiled code to a file
+    # Embed if specified
+    compiled = f'_constants = {consts}\n{compiled}'
+    if standalone:
+        imports = ['inspect', 're', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
+        embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer]
+        repl = {'Compiler.': '', 'F.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
+        headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
 
-            # Embedded
-            output = Packager.standalone(imports, headers, embeds, compiled, replacements=repl, removals=["@staticmethod"])
-        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
-            f.write(output)
-
-    # Execute the compiled code
-    if '-e' in sys.argv:
-        start = time.perf_counter()
-        exec(compiled, env, env)
-        print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[1])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
+        compiled = Packager.standalone(imports, headers, embeds, compiled, replacements=repl, removals=["@staticmethod"])
+    with open(sys.argv[3], 'w') as f:
+        f.write(compiled)
 
     # Caching
-    if "-nocache" not in sys.argv and caching is not None:
+    if "--nocache" not in sys.argv and caching is not None:
         CacheLoader.store(caching)
 
-    input('Press enter to exit.')
+    # Returning
+    return compiled, env
+
+def execute(code: str, env: dict = None):
+    start = time.perf_counter()
+    env = env or {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback,
+                  'null': None, 'true': True, 'false': False}
+    exec(code, env, env)
+    print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[0])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
+
+    input("Press any key to exit.")
+
+
+def uncache():
+    os.makedirs(sys.argv[2], exist_ok=True)
+
+    for s, snapshot in enumerate(CacheLoader.load()):
+        with open(f'{sys.argv[2]}/snapshot_code-{s}.apr', 'w') as f:
+            f.write(snapshot.code)
+        with open(f'{sys.argv[2]}/snapshot_compiled-{s}.apy', 'w') as f:
+            f.write(snapshot.compiled)
+
+def run():
+    compiled, env = apricompile(False)
+    execute(compiled, env)
+
+def main():
+    if sys.argv[1] == "compile":
+        apricompile(False)
+    elif sys.argv[1] == "standalone":
+        apricompile(True)
+    elif sys.argv[1] == "execute":
+        with open(sys.argv[2]) as f:
+            code = f.read()
+            execute(code)
+    elif sys.argv[1] == "uncache":
+        uncache()
+    elif sys.argv[1] == "clearcache":
+        CacheLoader.clear()
+    elif sys.argv[1] == "run":
+        run()
+    else:
+        raise RuntimeError("Unknown command")
+
 
 # Entry
 if __name__ == '__main__':

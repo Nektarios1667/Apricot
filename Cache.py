@@ -1,3 +1,4 @@
+import os
 import re
 import time
 import pickle
@@ -27,7 +28,7 @@ class Snapshot:
 
 class CacheLoader:
     @staticmethod
-    def load() -> dict:
+    def load() -> list[Snapshot]:
         try:
             with open('.cache/_cache_.pkl', 'rb') as file:
                 cached = pickle.load(file)
@@ -52,3 +53,8 @@ class CacheLoader:
             if not snapshots or snapshot != snapshots[-1]:
                 snapshots = [*snapshots, snapshot][-5:]
             pickle.dump(snapshots, file)
+
+    @staticmethod
+    def clear():
+        if os.path.exists('.cache/__cache__.pkl'):
+            os.remove('.cache/_cache_.pkl')
