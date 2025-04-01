@@ -111,7 +111,7 @@ def main():
         apricompile(False)
 
     elif sys.argv[1] == "standalone":
-        requireArgs(3, 3)
+        requireArgs(4, 4)
         apricompile(True)
 
     elif sys.argv[1] == "execute":

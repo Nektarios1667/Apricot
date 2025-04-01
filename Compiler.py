@@ -290,7 +290,7 @@ class Compiler:
                 continue
             returning = re.match('return +([^;]+);', line.strip())
             if returning:
-                compiled = compiled.replace(returning[0], f'giveback({returning[1]}, {current}, {l})')
+                compiled = compiled.replace(returning[0], f'return giveback({returning[1]}, {current}, {l})')
 
         # Functions
         functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)

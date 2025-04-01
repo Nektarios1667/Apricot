@@ -56,5 +56,5 @@ class CacheLoader:
 
     @staticmethod
     def clear():
-        if os.path.exists('.cache/__cache__.pkl'):
+        if os.path.exists('.cache/_cache_.pkl'):
             os.remove('.cache/_cache_.pkl')
