@@ -30,10 +30,10 @@ class CacheLoader:
     @staticmethod
     def load() -> list[Snapshot]:
         try:
-            with open('.cache/_cache_.pkl', 'rb') as file:
+            with open('.cache\\_cache_.pkl', 'rb') as file:
                 cached = pickle.load(file)
         except Exception:
-            with open('.cache/_cache_.pkl', 'wb') as file:
+            with open('.cache\\_cache_.pkl', 'wb') as file:
                 cached = []
                 pickle.dump(cached, file)
 

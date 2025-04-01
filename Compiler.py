@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import Cache
 import re
 import Functions as F
@@ -57,20 +58,21 @@ class Compiler:
         :return:
         """
         # Get file path
-        folder = os.path.dirname(sys.argv[0])
+        folder = os.path.dirname(sys.argv[0])[1:]
+        path = folder + "\\" if folder else "" + file
     
         # Checking file type
         if not file.endswith('.apl'):
-            Compiler.error('LibraryError', -1, extra='Wrong file type')
-        if not os.path.exists(f'{folder}/{file}'):
-            Compiler.error('LibraryError', -1, extra='File not found')
+            Compiler.error('LibraryError', -1, line=path, extra='Wrong file type')
+        if not os.path.exists(path):
+            Compiler.error('LibraryError', -1, line=path, extra='File not found')
     
         # Module
         name = os.path.basename(file)[:-4]
-        library = Library(f'{folder}/{file}')
+        library = Library(path)
     
         # Reading
-        with open(f'{folder}/{file}', 'rb') as f:
+        with open(path, 'rb') as f:
             code = f.read().decode('utf-8', errors='ignore')
     
         # Checking if the code is valid

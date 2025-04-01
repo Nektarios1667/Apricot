@@ -55,8 +55,14 @@ def apricompile(standalone: bool):
         headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
 
         compiled = Packager.standalone(imports, headers, embeds, compiled, replacements=repl, removals=["@staticmethod"])
-    with open(sys.argv[3], 'w') as f:
-        f.write(compiled)
+
+    # Write
+    if sys.argv[1] in ['compile', 'standalone']:
+        with open(sys.argv[3], 'w') as f:
+            f.write(compiled)
+    elif '-w' in sys.argv:
+        with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
+            f.write(compiled)
 
     # Caching
     if "--nocache" not in sys.argv and caching is not None:
