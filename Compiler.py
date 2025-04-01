@@ -58,8 +58,8 @@ class Compiler:
         :return:
         """
         # Get file path
-        folder = os.path.dirname(sys.argv[0])[1:]
-        path = folder + "\\" if folder else "" + file
+        folder = os.path.dirname(sys.argv[0])
+        path = folder + ("\\" if folder else "") + file
     
         # Checking file type
         if not file.endswith('.apl'):

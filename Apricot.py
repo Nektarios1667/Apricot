@@ -94,21 +94,44 @@ def run():
     compiled, env = apricompile(False)
     execute(compiled, env)
 
+def requireArgs(least: int, most: int):
+    if len(sys.argv) < least:
+        raise ValueError(f"Expected at least {least} arguments")
+    elif len(sys.argv) > most:
+        raise ValueError(f"Expected at most {most} arguments")
+
 def main():
+    # Empty
+    if len(sys.argv) < 2:
+        sys.argv = [sys.argv[0], *input("Enter command:").split(' ')]
+
+    # Commands
     if sys.argv[1] == "compile":
+        requireArgs(4, 4)
         apricompile(False)
+
     elif sys.argv[1] == "standalone":
+        requireArgs(3, 3)
         apricompile(True)
+
     elif sys.argv[1] == "execute":
+        requireArgs(3, 4)
         with open(sys.argv[2]) as f:
             code = f.read()
             execute(code)
+
     elif sys.argv[1] == "uncache":
+        requireArgs(3, 3)
         uncache()
+
     elif sys.argv[1] == "clearcache":
+        requireArgs(2, 2)
         CacheLoader.clear()
+
     elif sys.argv[1] == "run":
+        requireArgs(3, 5)
         run()
+
     else:
         raise RuntimeError("Unknown command")
 
