@@ -48,6 +48,9 @@ catch:
 Function: fact = factorial;
 log(fact(2));
 
+// Library
+log(functions.multiAdd(1, 2, 3));
+
 // Pointers
 int: number = 0;
 Pointer: point = @number;

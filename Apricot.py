@@ -7,7 +7,6 @@ from Compiler import Compiler
 import os
 from Cache import CacheLoader
 import Library
-import Packager
 from Pointers import Pointer
 from Text import ColorText as C
 import Packager
@@ -23,7 +22,6 @@ def apricompile(standalone: bool):
     # Read and compile the code file
     with open(sys.argv[2], 'r', encoding='utf-8') as f:
         code = f.read()
-        Compiler.code = code
 
     # Load cache
     cache = CacheLoader.find(code)

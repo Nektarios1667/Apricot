@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 import Cache
 import re
 import Functions as F
@@ -48,8 +47,6 @@ class Compiler:
         else:
             Compiler.error('TypeError', line + 1, extra=f'Expected -{returnType.__name__}- but -{type(value).__name__}- was returned')
 
-        # locals()[inspect.currentframe().f_code.co_name].__annotations__.get('return')
-
     @staticmethod
     def load(file: str):
         """
@@ -86,7 +83,7 @@ class Compiler:
                 Compiler.error('LibraryError', l + 1)
     
         # Running
-        env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'null': None, 'true': True, 'false': False}
+        env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable,  'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
         compiled, _, _ = Compiler.compile(code)
         exec(compiled, env)
     
@@ -98,7 +95,7 @@ class Compiler:
         return {name: library}
 
     @staticmethod
-    def variable(name: str, value, l: int, env: dict, varType: str = ''):
+    def variable(name: str, value, l: int, env: dict, varType: type = ''):
         """
         Built-in function used in compilation to handle variable creation and assignment.
         :param env:
@@ -112,8 +109,6 @@ class Compiler:
     
         # value = eval(value, env)
         if varType:
-            varType = eval(varType, env)
-    
             if name in constants:
                 Compiler.error('VariableError', l + 1, extra=f'Variable "{name}" is already a constant', description=name)
             elif not isinstance(value, varType):
@@ -135,8 +130,8 @@ class Compiler:
     def log(*values: object, sep: str | None = "\n", end: str | None = "\n", flush: bool = False):
         values = [str(value) for value in values]
     
-        # Replace type mentions
-        objectRenames = {'Callable': 'Function', 'print': 'Compiler.log', 'None': 'null', 'True': 'true', 'False': 'false'}
+        # Replace renames
+        objectRenames = {'Callable': 'Function', 'print': 'log', 'None': 'null', 'True': 'true', 'False': 'false'}
         for v, value in enumerate(values):
             for repl in re.findall(r'\x1a(\w+)\x1a', str(value)):
                 # Check if it needs a replacement
@@ -167,6 +162,7 @@ class Compiler:
         # Variables
         warnings = []
         constants = {}
+        Compiler.code = code
         compiled = code
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
@@ -272,7 +268,7 @@ class Compiler:
         for l, line in enumerate(compiled.splitlines()):
             variables = [list(found) for found in re.findall(rf'((int|float|str|bool|list|tuple|dict|object{classNames}): *(\w+) *= *([^;]+))', line)]
             for variable in variables:
-                compiled = compiled.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), "{variable[1]}")')
+                compiled = compiled.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), {variable[1]})')
     
         # Plain var declarations
         for l, line in enumerate(compiled.splitlines()):
