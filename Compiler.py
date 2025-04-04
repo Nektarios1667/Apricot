@@ -306,13 +306,11 @@ class Compiler:
     
         # Switch replacements
         for apr, py in direct.items():
-            while re.findall(apr, compiled):
-                for found in re.findall(apr, compiled):
-                    repl = py
-                    for p, part in enumerate(found):
-                        repl = repl.replace(f'\x1a:{p}', part)
-    
-                    compiled = compiled.replace(found[0], repl)
+            for found in re.findall(apr, compiled):
+                for p, part in enumerate(found):
+                    py = py.replace(f'\x1a:{p}', part)
+
+                compiled = compiled.replace(found[0], py)
     
         # Switch phrase replacements
         for apr, py in directPhrase.items():
@@ -323,8 +321,7 @@ class Compiler:
             compiled = compiled.replace(f'\x1a={f}', fill)
     
         # Automatic error handling wrap
-        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'
-        #                                                                                        'e.__traceback__.tb_lineno - 1}\033[0m")')
+        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'e.__traceback__.tb_lineno - 1}\033[0m")')
     
         # Setup
         compiled = f'{compiled}\n'
