@@ -230,7 +230,12 @@ class Compiler:
         for l, line in enumerate(compiled.splitlines()):
             for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? *:', line):
                 compiled = compiled.replace(line, f'class {cls[0]}({cls[1]}):')
-    
+
+        # Class blocks
+        for b, block in enumerate(re.findall(r'class\s+\w+(?:\([^)]+\))?:\s*\n(?:[ \t]+[^\n]*\n?|\n)*', compiled)):
+            for func in re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', block):
+                compiled = compiled.replace(block, block.replace(func[0], f'{func[1]}func {func[2]} {func[3]}(this{", " if func[4] else ""}{func[4]}):'))
+
         # Remove old type casting
         for l, line in enumerate(compiled.splitlines()):
             wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
@@ -262,7 +267,7 @@ class Compiler:
     
         # Tabs
         compiled = compiled.replace('\t', '    ')
-    
+
         # Constant replacements
         for const, value in constants.items():
             compiled = re.sub(rf'\b{const}(?! *=)\b', value, compiled)
