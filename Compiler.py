@@ -1,11 +1,13 @@
 import os
-import Cache
 import re
-import Functions as F
 import sys
-from Text import ColorText as C
+
+import Cache
+import Functions as F
 from Library import Library
 from Pointers import Pointer
+from Text import ColorText as C
+
 
 class Compiler:
     code = ''
@@ -172,7 +174,7 @@ class Compiler:
         syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
         # nameErrors = [r'globals\(\)', r'locals\(\)']
         nameErrors = []
-        syntaxPhrase = [r'\bFalse\b', r'\bTrue\b', r'func +\w+ +\w+\(self']
+        syntaxPhrase = [r'func +\w+ +\w+\(self']
         directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
     
         # String replacements
@@ -221,12 +223,12 @@ class Compiler:
     
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
-        classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* ?:', compiled))
+        classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* *:', compiled))
         classNames = f'{"|" if classes else ""}{"|".join(classes)}'
     
         # Class declarations
         for l, line in enumerate(compiled.splitlines()):
-            for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? ?:', line):
+            for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? *:', line):
                 compiled = compiled.replace(line, f'class {cls[0]}({cls[1]}):')
     
         # Remove old type casting
@@ -240,12 +242,12 @@ class Compiler:
             compiled = compiled.replace(cast[0], f'{cast[1]}({cast[2]})')
     
         # Wrong __init__ with return type specified
-        wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\):)', compiled)
+        wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func (int|float|str|list|tuple|object|bool|null{classNames}) \2\(([^)]*)\) *:)', compiled)
         if wrongInits:
             Compiler.error('SyntaxError', wrongInits[0][4], F.searchLine(wrongInits[0][0].split('\n')[-1].strip(), compiled), 'Class constructors should not return anything')
     
         # Correct __init__ adding return type
-        replInits = re.findall(rf'(([\t ]*)class (\w+)(\([^)]*\))?:([\s\S]*?)func \3\(([^)]*)\):)', compiled)
+        replInits = re.findall(rf'(([\t ]*)class (\w+)(\([^)]*\))?:([\s\S]*?)func \3\(([^)]*)\) *:)', compiled)
         for repl in replInits:
             compiled = compiled.replace(repl[0], f'{repl[1]}class {repl[2]}{repl[3]}:{repl[4]}func null {repl[2]}({repl[5]}):')
     

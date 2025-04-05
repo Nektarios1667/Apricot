@@ -12,7 +12,6 @@ class improvedString inherits str:
     // Method
     func str setChar(this, char, idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
-        return this.value;
 
 
 // Function
@@ -26,11 +25,13 @@ func int factorial(value):
 
 // Function call
 log(factorial(10));
-log("this should have a warning even if it looks like there is a comment //")
 
 // Object
 improvedString: imprStr = improvedString("test");
-log(imprStr.setChar('_', 0));
+// Method calling
+imprStr.setChar('_', 0);
+// Property
+log(imprStr.value);
 
 // While loop
 int: n = 0;
