@@ -1,7 +1,6 @@
 import os
-import re
-import time
 import pickle
+import time
 
 
 class Snapshot:
@@ -32,10 +31,8 @@ class CacheLoader:
         try:
             with open('.cache\\_cache_.pkl', 'rb') as file:
                 cached = pickle.load(file)
-        except Exception:
-            with open('.cache\\_cache_.pkl', 'wb') as file:
-                cached = []
-                pickle.dump(cached, file)
+        except FileNotFoundError:
+            cached = []
 
         return cached
 
@@ -49,6 +46,10 @@ class CacheLoader:
     @staticmethod
     def store(snapshot):
         snapshots = CacheLoader.load()
+
+        if not os.path.exists('.cache'):
+            os.mkdir('.cache')
+
         with open('.cache/_cache_.pkl', 'wb') as file:
             if not snapshots or snapshot != snapshots[-1]:
                 snapshots = [*snapshots, snapshot][-5:]

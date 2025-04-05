@@ -1,16 +1,18 @@
 import inspect
+import os
 import sys
 import time
 from typing import Callable
+
 import Cache
-from Compiler import Compiler
-import os
 from Cache import CacheLoader
+from Compiler import Compiler
+import Functions as F
 import Library
+import Packager
 from Pointers import Pointer
 from Text import ColorText as C
-import Packager
-import Functions as F
+
 
 def apricompile(standalone: bool):
     # Setup
@@ -106,14 +108,30 @@ def main():
     # Commands
     if sys.argv[1] == "compile":
         requireArgs(4, 4)
+
+        # Check
+        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+            raise ValueError("Expected Apricot file")
+
         apricompile(False)
 
     elif sys.argv[1] == "standalone":
         requireArgs(4, 4)
+
+        # Check
+        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+            raise ValueError("Expected Apricot file")
+
         apricompile(True)
 
     elif sys.argv[1] == "execute":
         requireArgs(3, 4)
+
+        # Check
+        if sys.argv[2].split('.')[-1] != "py":
+            raise ValueError("Expected Python file")
+
+        # Exec
         with open(sys.argv[2]) as f:
             code = f.read()
             execute(code)
@@ -127,6 +145,11 @@ def main():
         CacheLoader.clear()
 
     elif sys.argv[1] == "run":
+
+        # Check
+        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+            raise ValueError("Expected Apricot file")
+
         requireArgs(3, 5)
         run()
 
