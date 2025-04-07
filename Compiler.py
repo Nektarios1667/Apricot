@@ -86,7 +86,7 @@ class Compiler:
     
         # Running
         env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable,  'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
-        compiled, _, _ = Compiler.compile(code)
+        compiled, _, _ = Compiler.compile(code, main=False)
         exec(compiled, env)
     
         # Clean globals
@@ -148,9 +148,10 @@ class Compiler:
         print(*values, sep=sep, end=end, flush=flush)
     
     @staticmethod
-    def compile(code: str):
+    def compile(code: str, main: bool = True):
         """
         Compiles Apricot code into Python code. Returns the compiled code, a cache, and any constants.
+        :param main:
         :param code:
         :return:
         """
@@ -164,7 +165,7 @@ class Compiler:
         # Variables
         warnings = []
         constants = {}
-        Compiler.code = code
+        if main: Compiler.code = code
         compiled = code
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',

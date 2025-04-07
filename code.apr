@@ -18,7 +18,7 @@ class improvedString inherits str:
 func int factorial(value):
     int: product = 1;
     // For loop
-    for num in (2..value+1..1):
+    for num in (2..value+1):
         product = product * num;
 
     return product;
