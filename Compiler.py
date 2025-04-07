@@ -20,9 +20,9 @@ class Compiler:
     
         # Printing and closing
         if description:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
+            Compiler.log(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""))
         else:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
+            Compiler.log(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""))
         if '-w' in sys.argv:
             with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
                 f.write(Compiler.compiled)
@@ -87,8 +87,12 @@ class Compiler:
         # Running
         env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable,  'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
         compiled, _, _ = Compiler.compile(code, main=False)
-        exec(compiled, env)
-    
+
+        try:
+            exec(compiled, env)
+        except Exception as e:
+            Compiler.error('LibraryError', e.__traceback__.tb_lineno - 1, extra=f'Error occurred during library execution')
+
         # Clean globals
         for var, val in dict(env).items():
             if callable(val):
@@ -123,10 +127,7 @@ class Compiler:
             elif not isinstance(value, type(env[name])):
                 Compiler.error('TypeError', l + 1, extra=f'Variable type defined as -\x1a{type(env[name]).__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
     
-        try:
-            env[name] = value
-        except Exception as e:
-            Compiler.error('CompilationError', -1, line="{S.BOLDERLINE}Recreated Line:{S.UNBOLDERLINE} {name} = {value}", extra='An error occurred during compilation')
+        env[name] = value
     
     @staticmethod
     def log(*values: object, sep: str | None = "\n", end: str | None = "\n", flush: bool = False):
@@ -327,15 +328,15 @@ class Compiler:
         # Inject strings
         for f, fill in enumerate(strings):
             compiled = compiled.replace(f'\x1a={f}', fill)
-    
+
         # Automatic error handling wrap
-        # compiled = f'try:\n' + '\n'.join([f'    {line}' for line in compiled.splitlines()]) + ('\nexcept Exception as e:\n    print(f"\033[31m{type(e).__name__}: {e} @ line {'e.__traceback__.tb_lineno - 1}\033[0m")')
-    
+        compiled = f'try:\n' + '\n'.join([f'\t{line}' for line in compiled.splitlines()]) + '\nexcept Exception as e:\n\timport traceback\n\terror(type(e).__name__, e.__traceback__.tb_lineno - 2)'
+
         # Setup
         compiled = f'{compiled}\n'
         # Remove semicolons
         compiled = compiled.replace(';\n', '\n')
-    
+
         # Cache
         cache = Cache.Snapshot()
         cache.save(code, compiled, constants, warnings)

@@ -14,9 +14,9 @@ from Pointers import Pointer
 from Text import ColorText as C
 
 
-def apricompile(standalone: bool):
+def compileCode(standalone: bool):
     # Setup
-    env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
+    env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
 
     # Time
     start = time.perf_counter()
@@ -73,7 +73,7 @@ def apricompile(standalone: bool):
 
 def execute(code: str, env: dict = None):
     start = time.perf_counter()
-    env = env or {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback,
+    env = env or {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback,
                   'null': None, 'true': True, 'false': False}
     exec(code, env, env)
     print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[0])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
@@ -91,7 +91,7 @@ def uncache():
             f.write(snapshot.compiled)
 
 def run():
-    compiled, env = apricompile(False)
+    compiled, env = compileCode(False)
     execute(compiled, env)
 
 def requireArgs(least: int, most: int):
@@ -113,7 +113,7 @@ def main():
         if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
             raise ValueError("Expected Apricot file")
 
-        apricompile(False)
+        compileCode(False)
 
     elif sys.argv[1] == "standalone":
         requireArgs(4, 4)
@@ -122,7 +122,7 @@ def main():
         if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
             raise ValueError("Expected Apricot file")
 
-        apricompile(True)
+        compileCode(True)
 
     elif sys.argv[1] == "execute":
         requireArgs(3, 4)
