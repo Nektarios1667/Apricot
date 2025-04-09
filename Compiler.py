@@ -304,8 +304,8 @@ class Compiler:
             for plain in plainVars:
                 compiled = compiled.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
-        # Patameter typing
-        for typeHint in re.findall(r'(([a-zA-Z_]\w*) *: *([a-zA-Z_]\w*))', compiled):
+        # Parameter typing
+        for typeHint in re.findall(r'[(,] *(([a-zA-Z_]\w*) *: *([a-zA-Z_]\w*))', compiled):
             compiled = compiled.replace(typeHint[0], f'{typeHint[2]}: {typeHint[1]}')
 
         # Function calls with arguments
