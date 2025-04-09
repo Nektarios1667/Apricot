@@ -13,10 +13,11 @@ import Packager
 from Pointers import Pointer
 from Text import ColorText as C
 
+DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
 
 def compileCode(standalone: bool):
     # Setup
-    env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
+    env = DEFAULTENV
 
     # Time
     start = time.perf_counter()
@@ -73,8 +74,7 @@ def compileCode(standalone: bool):
 
 def execute(code: str, env: dict = None):
     start = time.perf_counter()
-    env = env or {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback,
-                  'null': None, 'true': True, 'false': False}
+    env = env or DEFAULTENV
     exec(code, env, env)
     print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[0])} [{(time.perf_counter() - start) * 1000:.1f} ms]\n{C.RESET}')
 
@@ -150,7 +150,7 @@ def main():
         if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
             raise ValueError("Expected Apricot file")
 
-        requireArgs(3, 5)
+        requireArgs(3, 6)
         run()
 
     else:

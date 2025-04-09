@@ -6,16 +6,16 @@ const: PI = 3.1415926;
 
 // Class
 class improvedString inherits str:
-    func improvedString(value): // Initialization function
+    func improvedString(str: value): // Initialization function
         this.value = value;
 
     // Method
-    func str setChar(char, idx):
+    func str setChar(str: char, int: idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
 
 
 // Function
-func int factorial(value):
+func int factorial(int: value):
     int: product = 1;
     // For loop
     for num in (2..value+1):

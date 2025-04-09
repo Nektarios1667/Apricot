@@ -1,2 +1,2 @@
-func int multiAdd(a, b, c):
+func int multiAdd(int: a, int: b, int: c):
     return a + b + c;

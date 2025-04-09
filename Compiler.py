@@ -1,3 +1,4 @@
+import inspect
 import os
 import re
 import sys
@@ -41,6 +42,23 @@ class Compiler:
 
         # Return back for logging
         return warning, l, line, description, extra
+
+    @staticmethod
+    def call(function, args, l):
+        # Check params
+        a = 0
+        for paramName, param in inspect.signature(function).parameters.items():
+            if param.annotation is inspect._empty:
+                funcLine = [l for l, line in enumerate(Compiler.code.splitlines()) if line.strip().startswith("func") and function.__name__ in line][0]
+                Compiler.error("SyntaxError", funcLine + 1, description=f"{paramName}", extra="Argument missing type")
+
+            if len(args) - 1 >= a and not isinstance(args[a], param.annotation):
+                Compiler.error("ArgumentError", l + 1, description=f"{args[a]}", extra=f"Argument '{paramName}' expected -{param.annotation.__name__}- but -{type(args[a]).__name__}- was given")
+            a += 1
+
+        # Call func
+        return function(*args)
+
 
     @staticmethod
     def giveback(value, returnType, line):
@@ -170,7 +188,7 @@ class Compiler:
         compiled = code
         direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
                   r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
-                  r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^(\w.*))\b': '\x1a:1.val',
+                  r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^([a-zA-Z_]\w*))': '\x1a:1.val',
                   r'(noop;())': 'pass', r'(\((.+)\.\.(.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2, \x1a:3)', r'(\((.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2)', r'((def +\w+)\(this)':
                       '\x1a:1(self'}
         syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
@@ -178,7 +196,7 @@ class Compiler:
         nameErrors = []
         syntaxPhrase = [r'func +\w+ +\w+\(self']
         directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
-    
+
         # String replacements
         strings = []
         for s, string in enumerate(re.findall(r'''((["'])[^(?:\2)]+\2)''', compiled)):
@@ -286,6 +304,27 @@ class Compiler:
             for plain in plainVars:
                 compiled = compiled.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
+        # Patameter typing
+        for typeHint in re.findall(r'(([a-zA-Z_]\w*) *: *([a-zA-Z_]\w*))', compiled):
+            compiled = compiled.replace(typeHint[0], f'{typeHint[2]}: {typeHint[1]}')
+
+        # Function calls with arguments
+        while True:
+            # Repeat until not found anymore for nested calls
+            found = False
+            for l, line in enumerate(compiled.splitlines()):
+                # Skip function definitions since they look similar
+                if re.search(r'^[ \t]*func|class', line):
+                    continue
+
+                # Find
+                calls = re.findall(r'(([a-zA-Z_]\w*\.)?([a-zA-Z_]\w*)\(([^()]+)\))', line)
+                found = bool(calls)
+                for call in calls:
+                    compiled = compiled.replace(call[0], f'call({call[1]}{call[2]}, ({call[3]},), {l})')
+            if not found:
+                break
+
         # Function returns
         current = ''
         for l, line in enumerate(compiled.splitlines()):
@@ -301,7 +340,7 @@ class Compiler:
         # Functions
         functions = re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
         for func in functions:
-            compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}*_: object) -> {func[2] if func[2] != "null" else "None"}:')
+            compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}) -> {func[2] if func[2] != "null" else "None"}:')
 
         # __init__ keyword errors
         wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', compiled)
@@ -330,7 +369,7 @@ class Compiler:
             compiled = compiled.replace(f'\x1a={f}', fill)
 
         # Automatic error handling wrap
-        compiled = f'try:\n' + '\n'.join([f'\t{line}' for line in compiled.splitlines()]) + '\nexcept Exception as e:\n\timport traceback\n\terror(type(e).__name__, e.__traceback__.tb_lineno - 2)'
+        # compiled = f'try:\n' + '\n'.join([f'\t{line}' for line in compiled.splitlines()]) + '\nexcept Exception as e:\n\timport traceback\n\terror(type(e).__name__, e.__traceback__.tb_lineno - 2)'
 
         # Setup
         compiled = f'{compiled}\n'
