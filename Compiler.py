@@ -244,8 +244,10 @@ class Compiler:
 
         # Class blocks
         for b, block in enumerate(re.findall(R.CLASSBLOCKS, compiled)):
+            newBlock = block
             for func in re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', block):
-                compiled = compiled.replace(block, block.replace(func[0], f'{func[1]}func {func[2]} {func[3]}(this{", " if func[4] else ""}{func[4]}):'))
+                newBlock = newBlock.replace(func[0], f'{func[1]}func {func[2]} {func[3]}(this{", " if func[4] else ""}{func[4]}):')
+            compiled = compiled.replace(block, newBlock)
 
         # Remove old type casting
         for l, line in enumerate(compiled.splitlines()):
@@ -346,10 +348,11 @@ class Compiler:
         # Switch replacements
         for apr, py in R.DIRECT.items():
             for found in re.findall(apr, compiled):
+                filledPy = py
                 for p, part in enumerate(found):
-                    py = py.replace(f'\x1a:{p}', part)
+                    filledPy = filledPy.replace(f'\x1a:{p}', part)
 
-                compiled = compiled.replace(found[0], py)
+                compiled = compiled.replace(found[0], filledPy)
     
         # Switch phrase replacements
         for apr, py in R.DIRECTPHRASES.items():

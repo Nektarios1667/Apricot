@@ -4,6 +4,8 @@ import sys
 import time
 from typing import Callable
 
+import requests
+
 import Cache
 from Cache import CacheLoader
 from Compiler import Compiler
@@ -100,6 +102,26 @@ def requireArgs(least: int, most: int):
     elif len(sys.argv) > most:
         raise ValueError(f"Expected at most {most} arguments")
 
+def fetchRegistry():
+    resp = requests.get('https://raw.githubusercontent.com/Nektarios1667/Apricot-Library-Registry/refs/heads/main/registry.json')
+    if not resp.ok:
+        raise Exception(f"Failed to fetch registry: {resp.status_code}")
+    return resp.json()
+
+def install():
+    registry = fetchRegistry()
+    libraryId = registry[sys.argv[2]]['id']
+
+    resp = requests.get(f'https://api.github.com/gists/{libraryId}')
+    if resp.ok:
+        data = resp.json()
+        for name, lib in data["files"].items():
+            with open(f'.libraries\\{name}', 'w') as f:
+                f.write(lib['content'])
+    else:
+        print("Failed to fetch library")
+
+
 def main():
     # Empty
     if len(sys.argv) < 2:
@@ -152,6 +174,11 @@ def main():
 
         requireArgs(3, 6)
         run()
+
+    elif sys.argv[1] == "install":
+        requireArgs(3, 3)
+
+        install()
 
     else:
         raise RuntimeError("Unknown command")
