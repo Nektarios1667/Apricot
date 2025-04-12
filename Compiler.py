@@ -7,6 +7,7 @@ import Cache
 import Functions as F
 from Library import Library
 from Pointers import Pointer
+import Regex as R
 from Text import ColorText as C
 
 
@@ -186,16 +187,6 @@ class Compiler:
         constants = {}
         if main: Compiler.code = code
         compiled = code
-        direct = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1', r'(throw (\w+);)': 'raise \x1a:1', r'(catch( +.+)?:)': 'except \x1a:1:',
-                  r'(import (.*);)': 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
-                  r'(using (.*):)': 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^([a-zA-Z_]\w*))': '\x1a:1.val',
-                  r'(noop;())': 'pass', r'(\((.+)\.\.(.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2, \x1a:3)', r'(\((.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2)', r'((def +\w+)\(this)':
-                      '\x1a:1(self'}
-        syntax = [*direct.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
-        # nameErrors = [r'globals\(\)', r'locals\(\)']
-        nameErrors = []
-        syntaxPhrase = [r'func +\w+ +\w+\(self']
-        directPhrase = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
 
         # String replacements
         strings = []
@@ -222,48 +213,48 @@ class Compiler:
     
         # Syntax keyword errors
         for l, line in enumerate(compiled.splitlines()):
-            for syn in syntax:
+            for syn in R.SYNTAX:
                 found = re.findall(re.escape(syn), line)
                 if found:
                     Compiler.error('SyntaxError', l + 1, description=found[0], extra="Bad phrase.")
     
         # Syntax phrase errors
         for l, line in enumerate(compiled.splitlines()):
-            for syn in syntaxPhrase:
+            for syn in R.SYNTAXPHRASES:
                 found = re.findall(syn, line)
                 if found:
                     Compiler.error('SyntaxError', l + 1, description=found[0], extra="Bad phrase.")
     
         # Name errors
         for l, line in enumerate(compiled.splitlines()):
-            for syn in nameErrors:
+            for syn in R.NAMEERRORS:
                 found = re.findall(syn, line)
                 if found:
                     Compiler.error('NameError', l + 1, description=found[0], extra='Function {found[0]} not defined.')
     
         # Pull classes to use for rest of code
         classes = ['Pointer', 'Function']
-        classes.extend(re.findall(r'class (\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* *:', compiled))
+        classes.extend(re.findall(R.CLASSNAMES, compiled))
         classNames = f'{"|" if classes else ""}{"|".join(classes)}'
     
         # Class declarations
         for l, line in enumerate(compiled.splitlines()):
-            for cls in re.findall(r'class (\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)? *:', line):
+            for cls in re.findall(R.CLASSES, line):
                 compiled = compiled.replace(line, f'class {cls[0]}({cls[1]}):')
 
         # Class blocks
-        for b, block in enumerate(re.findall(r'class\s+\w+(?:\([^)]+\))?:\s*\n(?:[ \t]+[^\n]*\n?|\n)*', compiled)):
+        for b, block in enumerate(re.findall(R.CLASSBLOCKS, compiled)):
             for func in re.findall(rf'(( *)func +(null|int|float|str|bool|bytes|list|tuple|dict|object{classNames}) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', block):
                 compiled = compiled.replace(block, block.replace(func[0], f'{func[1]}func {func[2]} {func[3]}(this{", " if func[4] else ""}{func[4]}):'))
 
         # Remove old type casting
         for l, line in enumerate(compiled.splitlines()):
-            wrongCasts = re.findall(rf'((int|float|str|bool|list|tuple|dict|object)\([^)]*\))', line)
+            wrongCasts = re.findall(R.WRONGCASTS, line)
             if wrongCasts:
                 Compiler.error('SyntaxError', l + 1, description=wrongCasts[0][0])
     
         # Type casting
-        for cast in re.findall(rf'(< ?(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) ?>)', compiled):
+        for cast in re.findall(rf'(< *(int|float|str|bool|list|tuple|dict|object{classNames}) ([^>]*) *>)', compiled):
             compiled = compiled.replace(cast[0], f'{cast[1]}({cast[2]})')
     
         # Wrong __init__ with return type specified
@@ -272,13 +263,13 @@ class Compiler:
             Compiler.error('SyntaxError', wrongInits[0][4], F.searchLine(wrongInits[0][0].split('\n')[-1].strip(), compiled), 'Class constructors should not return anything')
     
         # Correct __init__ adding return type
-        replInits = re.findall(rf'(([\t ]*)class (\w+)(\([^)]*\))?:([\s\S]*?)func \3\(([^)]*)\) *:)', compiled)
+        replInits = re.findall(R.INITS, compiled)
         for repl in replInits:
             compiled = compiled.replace(repl[0], f'{repl[1]}class {repl[2]}{repl[3]}:{repl[4]}func null {repl[2]}({repl[5]}):')
     
         # Constants
         for l, line in enumerate(compiled.splitlines()):
-            for full, name, value in re.findall(r'(const: *([a-zA-Z_][\w_]*) *= *(.*);)', line):
+            for full, name, value in re.findall(R.CONSTS, line):
                 if name in constants:
                     Compiler.error('ConstantError', l + 1, description=name, extra='Cannot change value of constant "{name}"')
                 else:
@@ -300,12 +291,12 @@ class Compiler:
     
         # Plain var declarations
         for l, line in enumerate(compiled.splitlines()):
-            plainVars = re.findall(r'((?<!this\.|....\S)(\w+) *= *([^;]+))', line)
+            plainVars = re.findall(R.PLAINVARS, line)
             for plain in plainVars:
                 compiled = compiled.replace(plain[0], f'variable("{plain[1]}", {plain[2]}, {l}, globals())')
 
         # Parameter typing
-        for typeHint in re.findall(r'[(,] *(([a-zA-Z_]\w*) *: *([a-zA-Z_]\w*))', compiled):
+        for typeHint in re.findall(R.PARAMETERS, compiled):
             compiled = compiled.replace(typeHint[0], f'{typeHint[2]}: {typeHint[1]}')
 
         # Function calls with arguments
@@ -318,7 +309,7 @@ class Compiler:
                     continue
 
                 # Find
-                calls = re.findall(r'(([a-zA-Z_]\w*\.)?([a-zA-Z_]\w*)\(([^()]+)\))', line)
+                calls = re.findall(R.CALLS, line)
                 found = bool(calls)
                 for call in calls:
                     compiled = compiled.replace(call[0], f'call({call[1]}{call[2]}, ({call[3]},), {l})')
@@ -343,7 +334,7 @@ class Compiler:
             compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}) -> {func[2] if func[2] != "null" else "None"}:')
 
         # __init__ keyword errors
-        wrongInits = re.findall(r'(class (\w+)(\([^)]*\))?:\n[\t ]*func __init__(\([^)]*\)):)', compiled)
+        wrongInits = re.findall(R.WRONGINITS, compiled)
         if wrongInits:
             Compiler.error('SyntaxError', F.searchLine('__init__', compiled))
     
@@ -353,7 +344,7 @@ class Compiler:
             compiled = compiled.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self{", " if init[4] else ""}{init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
     
         # Switch replacements
-        for apr, py in direct.items():
+        for apr, py in R.DIRECT.items():
             for found in re.findall(apr, compiled):
                 for p, part in enumerate(found):
                     py = py.replace(f'\x1a:{p}', part)
@@ -361,7 +352,7 @@ class Compiler:
                 compiled = compiled.replace(found[0], py)
     
         # Switch phrase replacements
-        for apr, py in directPhrase.items():
+        for apr, py in R.DIRECTPHRASES.items():
             compiled = re.sub(apr, py, compiled)
     
         # Inject strings
