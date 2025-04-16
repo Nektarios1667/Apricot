@@ -115,7 +115,7 @@ class Compiler:
                 Compiler.error('LibraryError', l + 1)
 
         # Running
-        env = {'Compiler.log':print, 'load':Compiler.load, 'Pointer':Pointer, 'variable':Compiler.variable, 'giveback':Compiler.giveback, 'null':None, 'true':True, 'false':False}
+        env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
         compiled, _, _ = Compiler.compile(code, main=False)
 
         try:
@@ -166,7 +166,7 @@ class Compiler:
         values = [str(value) for value in values]
 
         # Replace renames
-        objectRenames = {'Callable':'Function', 'print':'log', 'None':'null', 'True':'true', 'False':'false'}
+        objectRenames = {'Callable': 'Function', 'print': 'log', 'None': 'null', 'True': 'true', 'False': 'false'}
         for v, value in enumerate(values):
             for repl in re.findall(r'\x1a(\w+)\x1a', str(value)):
                 # Check if it needs a replacement
@@ -244,11 +244,6 @@ class Compiler:
                 found = re.findall(syn, line)
                 if found:
                     Compiler.error('NameError', l + 1, description=found[0], extra='Function {found[0]} not defined.')
-
-        # Pull classes to use for rest of code
-        classes = ['Pointer', 'Function']
-        classes.extend(re.findall(R.CLASSNAMES, compiled))
-        classNames = f'{"|" if classes else ""}{"|".join(classes)}'
 
         # Class declarations
         for l, line in enumerate(compiled.splitlines()):

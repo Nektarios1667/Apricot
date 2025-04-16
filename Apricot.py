@@ -11,6 +11,7 @@ from Classes import *
 from Compiler import Compiler
 import Functions as F
 import Packager
+import Regex
 from Text import ColorText as C
 
 DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
@@ -50,10 +51,10 @@ def compileCode(standalone: bool):
     # Embed if specified
     compiled = f'_constants = {consts}\n{compiled}'
     if standalone:
-        imports = ['inspect', 're', 'sys', 'os', 'time', 'pickle', 'typing.Callable']
-        embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer]
-        repl = {'Compiler.': '', 'F.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
-        headers = [f'_constants = {consts}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
+        imports = ['inspect', 're', 'sys', 'os', 'time', 'pickle', 'typing.Callable', 'types']
+        embeds = [*Packager.getMethods(Compiler), F.getLine, F.searchLine, Library, C, Cache.Snapshot, Cache.CacheLoader, Pointer, NoType, Regex]
+        repl = {'Compiler.': '', 'F.': '', 'R.': '', 'Cache.': '', 'C.': 'ColorText.', 'folder = os.path.dirname(sys.argv[1])': 'folder = os.path.dirname(sys.argv[0])'}
+        headers = [f'_constants = {consts}', '_varTypes = {}', 'Function = Callable', 'with open(rf"{sys.argv[0]}", "r") as f:\n\tcode = f.read()']
 
         compiled = Packager.standalone(imports, headers, embeds, compiled, replacements=repl, removals=["@staticmethod"])
 
