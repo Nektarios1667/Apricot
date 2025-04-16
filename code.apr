@@ -1,13 +1,22 @@
 include math;
+include typing;
 import functions;
+
+type hashtag:
+    if isinstance(value, str):
+        return value[0] == '#';
+    else:
+        return false;
+
+hashtag: myHashtag = "#tag";
 
 // Constant definition
 const: PI = 3.1415926;
 
 // Class
 class improvedString inherits str:
-    func improvedString(str: value): // Initialization function
-        this.value = value;
+    func improvedString(str: val): // Initialization function
+        this.value = val;
 
     // Method
     func str setChar(str: char, int: idx):

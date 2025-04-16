@@ -1,5 +1,4 @@
 import inspect
-import os
 import sys
 import time
 from typing import Callable
@@ -8,14 +7,13 @@ import requests
 
 import Cache
 from Cache import CacheLoader
+from Classes import *
 from Compiler import Compiler
 import Functions as F
-import Library
 import Packager
-from Pointers import Pointer
 from Text import ColorText as C
 
-DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
+DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
 
 def compileCode(standalone: bool):
     # Setup
@@ -119,7 +117,7 @@ def install():
             with open(f'.libraries\\{name}', 'w') as f:
                 f.write(lib['content'])
     else:
-        print("Failed to fetch library")
+        print(f"Failed to fetch library: {resp.status_code}")
 
 
 def main():
