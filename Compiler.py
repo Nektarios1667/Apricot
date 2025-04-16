@@ -203,7 +203,7 @@ class Compiler:
 
         # String replacements
         strings = []
-        for s, string in enumerate(re.findall(r'''((["'])[^(?:\2)]+?\2)''', compiled)):
+        for s, string in enumerate(re.findall(R.STRINGS, compiled)):
             compiled = compiled.replace(string[0], f'\x1a={s}')
             strings.append(string[0])
 
@@ -213,7 +213,7 @@ class Compiler:
             line = line.strip()
 
             # Comments and empty lines
-            if line == '' or re.match(r'.*//.*$', line):
+            if line == '' or re.match(R.INLINECOMMENTS, line):
                 continue
 
             if line.strip()[-1] not in [':', ';']:
@@ -221,7 +221,7 @@ class Compiler:
                 warnings.append(warning)
 
         # Comments
-        for comm in re.findall(r'//.*', compiled):
+        for comm in re.findall(R.COMMENTS, compiled):
             compiled = compiled.replace(comm, '# There was a comment...')
 
         # Syntax keyword errors
@@ -258,7 +258,7 @@ class Compiler:
         # Class blocks
         for b, block in enumerate(re.findall(R.CLASSBLOCKS, compiled)):
             newBlock = block
-            for func in re.findall(rf'(( *)func +([a-zA-Z_]\w*) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', block):
+            for func in re.findall(R.METHODS, block):
                 newBlock = newBlock.replace(func[0], f'{func[1]}func {func[2]} {func[3]}(this{", " if func[4] else ""}{func[4]}):')
             compiled = compiled.replace(block, newBlock)
 
@@ -269,11 +269,11 @@ class Compiler:
                 Compiler.error('SyntaxError', l + 1, description=wrongCasts[0][0])
 
         # Type casting
-        for cast in re.findall(rf'(< *([a-zA-Z_]\w*) +([^>]*) *>)', compiled):
+        for cast in re.findall(R.CASTING, compiled):
             compiled = compiled.replace(cast[0], f'{cast[1]}({cast[2]})')
 
         # Wrong __init__ with return type specified
-        wrongInits = re.findall(rf'(class (\w+)(\([^)]*\))?:\n+([\t ]*)func +([a-zA-Z_]\w*) +\2\(([^)]*)\) *:)', compiled)
+        wrongInits = re.findall(R.WRONGINITSRETURNS, compiled)
         if wrongInits:
             Compiler.error('SyntaxError', wrongInits[0][4], F.searchLine(wrongInits[0][0].split('\n')[-1].strip(), compiled), 'Class constructors should not return anything')
 
@@ -300,7 +300,7 @@ class Compiler:
 
         # Variable types
         for l, line in enumerate(compiled.splitlines()):
-            variables = [list(found) for found in re.findall(rf'(([a-zA-Z_]\w*): *(\w+) *= *([^;]+))', line)]
+            variables = [list(found) for found in re.findall(R.VARS, line)]
             for variable in variables:
                 compiled = compiled.replace(variable[0], f'variable("{variable[2]}", {variable[3]}, {l}, globals(), {variable[1]})')
 
@@ -320,7 +320,7 @@ class Compiler:
             found = False
             for l, line in enumerate(compiled.splitlines()):
                 # Skip function definitions since they look similar
-                if re.search(r'^[ \t]*func|class', line):
+                if re.search(R.CLASSFUNC, line):
                     continue
 
                 # Find
@@ -335,18 +335,18 @@ class Compiler:
         current = ''
         for l, line in enumerate(compiled.splitlines()):
             # Get function or method
-            func = re.match(fr'func +([a-zA-Z_]\w*) +\w+', line.strip())
+            func = re.match(R.SIMPLEFUNCS, line.strip())
             if func:
                 current = func.group(1)
                 continue
             elif re.match(R.TYPEPREDICATES, line.strip()):
                 current = ''
-            returning = re.match('return +([^;]+);', line.strip())
+            returning = re.match(R.RETURNS, line.strip())
             if returning and current:
                 compiled = compiled.replace(returning[0], f'return giveback({returning[1]}, {current}, {l})')
 
         # Functions
-        functions = re.findall(rf'(( *)func +([a-zA-Z_]\w*) +([a-zA-Z][a-zA-Z0-9_]*)\(([^)]*)\):)', compiled)
+        functions = re.findall(R.FUNCS, compiled)
         for func in functions:
             compiled = compiled.replace(func[0], f'{func[1]}def {func[3]}({func[4]}{", " if func[4] else ""}) -> {func[2] if func[2] != "null" else "None"}:')
 
@@ -361,7 +361,7 @@ class Compiler:
             Compiler.error('SyntaxError', F.searchLine('__init__', compiled))
 
         # Replacing constructor with __init__
-        inits = re.findall(rf'(class +(\w+)(\([^)]*\))?:\n+([\t ]*)def +\2\(([^)]*)\) *-> *([a-zA-Z_]\w*) *:)', compiled)
+        inits = re.findall(R.CONSTRUCTOR, compiled)
         for init in inits:
             compiled = compiled.replace(init[0], f'class {init[1]}{init[2]}:\n{init[3]}def __init__(self{", " if init[4] else ""}{init[4]}) -> {init[5] if init[5] != "null" else "None"}:')
 
