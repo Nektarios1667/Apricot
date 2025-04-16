@@ -2,6 +2,7 @@ import inspect
 import re
 import sys
 import types
+from typing import Callable
 
 import Cache
 from Classes import *
@@ -105,7 +106,7 @@ class Compiler:
             code = f.read().decode('utf-8', errors='ignore')
 
         # Checking if the code is valid
-        allowed = ['\t', 'func', 'class', '\n', '    ', '', r'//', 'using', 'import']
+        allowed = ['\t', 'func', 'class', 'type', '\n', '    ', '', r'//', 'using', 'import']
         for l, line in enumerate(code.splitlines()):
             for allow in allowed:
                 if line.startswith(allow):
@@ -115,7 +116,7 @@ class Compiler:
                 Compiler.error('LibraryError', l + 1)
 
         # Running
-        env = {'Compiler.log': print, 'load': Compiler.load, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'null': None, 'true': True, 'false': False}
+        env = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
         compiled, _, _ = Compiler.compile(code, main=False)
 
         try:
