@@ -131,7 +131,7 @@ def main():
         requireArgs(4, 4)
 
         # Check
-        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+        if sys.argv[2].split('.')[-1].lower() not in ("apr", "apricot"):
             raise ValueError("Expected Apricot file")
 
         compileCode(False)
@@ -140,7 +140,7 @@ def main():
         requireArgs(4, 4)
 
         # Check
-        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+        if sys.argv[2].split('.')[-1].lower() not in ("apr", "apricot"):
             raise ValueError("Expected Apricot file")
 
         compileCode(True)
@@ -168,7 +168,7 @@ def main():
     elif sys.argv[1] == "run":
 
         # Check
-        if sys.argv[2].split('.')[-1].lower() not in ["apr", "apricot"]:
+        if sys.argv[2].split('.')[-1].lower() not in ("apr", "apricot"):
             raise ValueError("Expected Apricot file")
 
         requireArgs(3, 6)

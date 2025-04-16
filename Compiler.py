@@ -92,7 +92,7 @@ class Compiler:
         path = folder + ("\\" if folder else "") + file
 
         # Checking file type
-        if not file.endswith('.apl'):
+        if file.split('.')[-1].lower() not in ('apl', 'aprlib', 'apricotlib', 'apricotlibrary'):
             Compiler.error('LibraryError', -1, line=path, extra='Wrong file type')
         if not os.path.exists(path):
             Compiler.error('LibraryError', -1, line=path, extra='File not found')
@@ -129,7 +129,7 @@ class Compiler:
             if callable(val):
                 setattr(library, var, val)
 
-        return {name:library}
+        return {name: library}
 
     @staticmethod
     def variable(name: str, value, l: int, env: dict, varType: type = ''):

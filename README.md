@@ -6,11 +6,18 @@
 
 - OOP with constructors and methods
 - Constants and strong typing
+- Custom types
 - Pointers
 - Try-catch exception handling
 - Looping and conditionals
 - Functions
 - Simple library system
+
+## Setup
+1. Download the [source code](https://github.com/Nektarios1667/Apricot) from GitHub
+2. Go to the directory of the code and run `pyinstaller --onefile Apricot.py`
+3. The executable will be outputed in the `dist` directory
+4. It can now be moved to any location
 
 ## Syntax Example
 ```
@@ -34,10 +41,20 @@ class improvedString inherits str:
 func int factorial(value):
     int: product = 1;
     // For loop
-    for num in (2..value+1..1):
+    for num in (2..value+1):
         product = product * num;
 
     return product;
+
+// Custom type predicate
+type hashtag:
+    if isinstance(value, str):
+        return value[0] == '#';
+    else:
+        return false;
+
+// Variable with custom type
+hashtag: myHashtag = "#tag";
 
 // Function call
 log(factorial(10));
@@ -85,25 +102,28 @@ Use Apricot.py to compile, run, or manage Apricot files:
 
 ```bash
 # Compile an Apricot file
-Apricot.py compile code.apr output.py
+Apricot compile code.apr output.py
 
 # Compile and run standalone
-Apricot.py standalone code.apr standalone.py
+Apricot standalone code.apr standalone.py
 
 # Execute a Python file compiled by Apricot
-Apricot.py execute compiled.py
+Apricot execute compiled.py
 
 # Run Apricot script directly
-Apricot.py run code.apr
+Apricot run code.apr
 # Run Apricot script directly and output compiled code
-Apricot.py run code.apr -w out.py
+Apricot run code.apr -w out.py
 
 # Clear or manage cache
-Apricot.py clearcache
-Apricot.py uncache directory
+Apricot clearcache
+Apricot uncache directory
 ```
 
-> `.apr` and `.apricot` are valid file extensions.
+## Notes
+
+- `.apr` and `.apricot` are valid file extensions for Apricot code.  
+- `.apl`, `aprlib`, `apricotlib`, and `apricotlibrary` are valid file extensions for Apricot Libraries.
 
 ## License
 This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. You are free to copy, share, and adapt the material, as long as you give appropriate credit, do not use it for commercial purposes, and distribute any modified versions under the same license. Full license details are available at https://creativecommons.org/licenses/by-nc-sa/4.0/.
