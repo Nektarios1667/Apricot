@@ -19,7 +19,7 @@ class improvedString inherits str:
         this.value = val;
 
     // Method
-    func str setChar(str: char, int: idx):
+    func null setChar(str: char, int: idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
 
 
@@ -42,8 +42,8 @@ imprStr.setChar('_', 0);
 // Property
 log(imprStr.value);
 
-// While loop
-int: n = 0;
+// While loop and implicit typing
+var: n = 0;
 while n**2 < 100:
     n += 1;
 

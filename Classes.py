@@ -10,7 +10,7 @@ class Library:
         self._path = path
 
     def __str__(self):
-        return f'<Library {self._name}>'
+        return f"-Library '{self._name}'-"
 
 
 class Pointer:
@@ -28,3 +28,6 @@ class Pointer:
 
     def __str__(self):
         return f"-Pointer '{self.var}'-"
+
+class Inferred:
+    pass

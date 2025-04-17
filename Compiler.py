@@ -144,7 +144,10 @@ class Compiler:
         """
         constants = env["_constants"]
 
-        # value = eval(value, env)
+        # Inferred type
+        if varType is Inferred:
+            varType = type(value)
+
         if varType:
             if name in constants:
                 Compiler.error('VariableError', l + 1, extra=f'Variable "{name}" is already a constant', description=name)
