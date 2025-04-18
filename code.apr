@@ -1,5 +1,4 @@
 include math;
-include typing;
 import functions;
 
 type hashtag:
@@ -42,8 +41,8 @@ imprStr.setChar('_', 0);
 // Property
 log(imprStr.value);
 
-// While loop and implicit typing
-var: n = 0;
+// While loop
+int: n = 0;
 while n**2 < 100:
     n += 1;
 
@@ -61,11 +60,13 @@ log(fact(2));
 // Library
 log(functions.multiAdd(1, 2, 3));
 
+// Implicit typing
+var: number = 0;
 // Pointers
-int: number = 0;
 Pointer: point = @number;
 number = number + 1;
 log(^point);
 
 // Const
 log(PI);
+
