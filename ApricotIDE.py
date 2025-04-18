@@ -1,3 +1,4 @@
+import os.path
 import re
 from tkinter import filedialog, messagebox
 import tkinter as tk
@@ -16,7 +17,32 @@ def openFile():
             content = f.read()
             textArea.delete("1.0", tk.END)
             textArea.insert(tk.END, content)
+
     syntaxHighlighting()
+    refreshFiles()
+
+def selectFile(_=None):
+    file = filesSelect.get(filesSelect.curselection()[0])
+    with open(file, "r") as f:
+        content = f.read()
+        textArea.delete("1.0", tk.END)
+        textArea.insert(tk.END, content)
+
+    syntaxHighlighting()
+    refreshFiles()
+
+def refreshFiles():
+    global file, files
+    files = []
+
+    if file:
+        filesSelect.delete(0, tk.END)
+        directory = os.path.dirname(file)
+        for f in os.listdir(directory):
+            if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f)[1].lower() in ['.apr', '.apricot', '.apl', '.apricotlib', '.apricotlibrary']:
+                files.append(f)
+                filesSelect.insert(tk.END, f)
+
 
 # Save file
 def saveAsFile():
@@ -45,7 +71,7 @@ def showAbout():
     messagebox.showinfo("About Apricot Editor", "Apricot Editor\nBuilt with Tkinter\nBy Nektarios")
 
 # Syntax highlighting
-def syntaxHighlighting(event=None):
+def syntaxHighlighting(_=None):
     # Clear tags
     for category in syntaxHighlights.values():
         textArea.tag_remove(category, "1.0", tk.END)
@@ -64,8 +90,10 @@ def run():
     output, compileTime, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
 
     # Update output area
+    outputArea.config(state='normal')
     outputArea.delete('1.0', tk.END)
     outputArea.insert('1.0', f"Compiled {file} [{compileTime} ms]\n\n{output}\n\nRan {file} [{runTime} ms]")
+    outputArea.config(state='disabled')
 
 def runWithoutCache():
     # Run
@@ -94,31 +122,37 @@ with open('highlighting.txt', 'r') as f:
     syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in f.readlines() if line != '\n']}
 
 # Constants
-THEMEGRAY = '#333333'
+THEMEGRAY = '#222222'
 
 # Variables
 file = ''
+files = []
+
+# File selector
+filesSelect = tk.Listbox(bg=THEMEGRAY, fg='white', font=("Consola", 14))
+filesSelect.place(relx=0.8125, rely=0, relwidth=0.1875, relheight=1.0)
+filesSelect.bind("<Double-Button-1>", selectFile)
 
 # Text area
 textScroll = tk.Scrollbar()
-textScroll.pack(side='right', fill='y')
+textScroll.place(relx=0.8, rely=0, relheight=0.7)
 
-textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=textScroll.set)
-textArea.pack(expand=1, fill='both')
+textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=textScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32)
+textArea.place(relx=0, rely=0, relwidth=0.8, relheight=0.8)
 
 textScroll.config(command=textArea.yview)
 
 # Highlighted colors
-syntaxColors = {'function': 'blue', 'control': '#8c560b', 'type': '#550bb5', 'oop': '#700756', 'comment': '#4a4a4a', 'string': '#14571d', 'number': '#147876'}
+syntaxColors = {'function': '#346eeb', 'control': '#bf7908', 'type': '#7e47a6', 'oop': '#c94260', 'comment': '#969696', 'string': '#3b8f3f', 'number': '#389ba1'}
 for category, color in syntaxColors.items():
     textArea.tag_config(category, foreground=color)
 
 # Output area
 outputScroll = tk.Scrollbar()
-outputScroll.pack(side='right', fill='y')
+outputScroll.place(relx=0.8, rely=0.7, relheight=0.3)
 
-outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set)
-outputArea.pack(expand=0, fill='both')
+outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32)
+outputArea.place(relx=0, rely=0.7, relwidth=0.8, relheight=0.3)
 outputArea.tag_config('system', foreground='#0BA28D')
 outputArea.tag_config('warn', foreground='yellow')
 outputArea.tag_config('error', foreground='red')
@@ -126,7 +160,7 @@ outputArea.tag_config('error', foreground='red')
 outputScroll.config(command=outputArea.yview)
 
 # Create menu bar
-menuBar = tk.Menu(root, background='gray')
+menuBar = tk.Menu(root)
 root.config(menu=menuBar)
 
 # File menu
