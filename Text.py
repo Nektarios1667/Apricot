@@ -1,3 +1,4 @@
+import os
 import sys
 
 
@@ -10,9 +11,18 @@ class ColorText:
         BLUE = ""
         MAGENTA = ""
         CYAN = ""
-        WHITE = ""
         BLACK = ""
         RESET = ""
+    # IDE
+    elif os.path.basename(sys.argv[0]) == 'ApricotIDE.py':
+        RED = "\u200B"
+        YELLOW = "\u200C"
+        CYAN = "\u200D"
+        GREEN = "\u2060"
+        BLUE = "\u2061"
+        MAGENTA = "\u2062"
+        BLACK = "\u2063"
+        RESET = "\uFEFF"
     # Script
     else:
         RED = "\033[31m"
@@ -21,24 +31,5 @@ class ColorText:
         BLUE = "\033[34m"
         MAGENTA = "\033[35m"
         CYAN = "\033[36m"
-        WHITE = "\033[37m"
         BLACK = "\033[30m"
         RESET = "\033[0m"
-
-class StyleText:
-    # Executable
-    if getattr(sys, 'frozen', False):
-        BOLD = ""
-        UNDERLINE = ""
-        UNBOLD = ""
-        UNUNDERLINE = ""
-        BOLDERLINE = ""
-        UNBOLDERLINE = ""
-    # Script
-    else:
-        BOLD = "\x1b[1m"
-        UNDERLINE = "\x1b[4m"
-        UNBOLD = "\x1b[22m"
-        UNUNDERLINE = "\x1b[24m"
-        BOLDERLINE = "\x1b[1;4m"
-        UNBOLDERLINE = "\x1b[22;24m"

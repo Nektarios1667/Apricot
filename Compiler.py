@@ -11,6 +11,9 @@ import Regex as R
 from Text import ColorText as C
 
 
+class ExitExecution(BaseException):
+    pass
+
 class Compiler:
     code = ''
     compiled = ''
@@ -29,7 +32,7 @@ class Compiler:
             with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
                 f.write(Compiler.compiled)
 
-        sys.exit(-1)
+        raise ExitExecution
 
     @staticmethod
     def warn(warning: str, l: int, line: str = '', description: str = '', extra: str = ''):

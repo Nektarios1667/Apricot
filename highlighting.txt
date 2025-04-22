@@ -44,6 +44,7 @@
 \bthis\b::oop
 \btype\b::oop
 
+#^[^;]+(?:\/\/)?$::warn
 
 //.*::comment
 (["'])[^(?:\1)]+?\1::string

@@ -5,7 +5,32 @@ import tkinter as tk
 
 import Apricot
 from Cache import *
+import Regex
+from Text import ColorText
 
+
+def showRegex():
+    # Text
+    text = ''
+    moduleVars = {name: getattr(Regex, name) for name in dir(Regex) if not name.startswith("__")}
+
+    for var, val in moduleVars.items():
+        text += f'{var} = {val}\n'
+
+    # Window
+    win = tk.Toplevel()
+    win.title("Regex Patterns")
+    textBox = tk.Text(win, wrap="none")  # Disable wrapping
+    textBox.insert("1.0", text)
+    textBox.pack(expand=True, fill="both")
+
+def terminal():
+    # Window
+    win = tk.Toplevel()
+    win.title("Apricot Terminal")
+    textBox = tk.Text(win, wrap="none")  # Disable wrapping
+    textBox.insert("1.0", text)
+    textBox.pack(expand=True, fill="both")
 
 # Open file
 def openFile():
@@ -22,6 +47,7 @@ def openFile():
     refreshFiles()
 
 def selectFile(_=None):
+    global file
     file = filesSelect.get(filesSelect.curselection()[0])
     with open(file, "r") as f:
         content = f.read()
@@ -29,7 +55,6 @@ def selectFile(_=None):
         textArea.insert(tk.END, content)
 
     syntaxHighlighting()
-    refreshFiles()
 
 def refreshFiles():
     global file, files
@@ -79,29 +104,43 @@ def syntaxHighlighting(_=None):
     # Add tags
     code = textArea.get('1.0', tk.END)
     for highlight, category in syntaxHighlights.items():
-        for match in re.finditer(highlight, code):
+        for match in re.finditer(highlight, code, flags=re.MULTILINE):
             startIdx = f"1.0 + {match.start()} chars"
             endIdx = f"1.0 + {match.end()} chars"
             textArea.tag_add(category, startIdx, endIdx)
 
+def updateOutput(text):
+    # Print
+    outputArea.config(state='normal')
+    outputArea.delete('1.0', tk.END)
+    outputArea.tag_remove('1.0', tk.END)
+    outputArea.insert('1.0', text)
+    outputArea.tag_add('system', '1.0', '2.0')
+    outputArea.tag_add('system', f'{int(float(outputArea.index("end-1c")))}.0', f'{int(float(outputArea.index("end-1c")))}.end')
+
+    # Colors
+    for pattern, category in {'\u200B[\s\S]+?\uFEFF': 'error', '\u200D[\s\S]+?\uFEFF': 'system', '\u200C[\s\S]+?\uFEFF': 'warn'}.items():
+        for match in re.finditer(pattern, text, flags=re.MULTILINE):
+            startIdx = f"1.0 + {match.start()} chars"
+            endIdx = f"1.0 + {match.end()} chars"
+            outputArea.tag_add(category, startIdx, endIdx)
+
+    outputArea.config(state='disabled')
+
 # Run
 def run():
     # Run
-    output, compileTime, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
+    output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
 
     # Update output area
-    outputArea.config(state='normal')
-    outputArea.delete('1.0', tk.END)
-    outputArea.insert('1.0', f"Compiled {file} [{compileTime} ms]\n\n{output}\n\nRan {file} [{runTime} ms]")
-    outputArea.config(state='disabled')
+    updateOutput(output)
 
 def runWithoutCache():
     # Run
-    output, compileTime, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
+    output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
 
     # Update output area
-    outputArea.delete('1.0', tk.END)
-    outputArea.insert('1.0', f"Compiled {file} [{compileTime} ms]\n\n{output}\n\nRan {file} [{runTime} ms]")
+    updateOutput(output)
 
 def compileCode():
     path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
@@ -119,7 +158,7 @@ root.bind('<KeyRelease>', syntaxHighlighting)
 
 # Highlighted words
 with open('highlighting.txt', 'r') as f:
-    syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in f.readlines() if line != '\n']}
+    syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in f.readlines() if line[0] not in ['\n', '#']]}
 
 # Constants
 THEMEGRAY = '#222222'
@@ -127,6 +166,7 @@ THEMEGRAY = '#222222'
 # Variables
 file = ''
 files = []
+ColorText.system = 'ide'
 
 # File selector
 filesSelect = tk.Listbox(bg=THEMEGRAY, fg='white', font=("Consola", 14))
@@ -143,7 +183,7 @@ textArea.place(relx=0, rely=0, relwidth=0.8, relheight=0.8)
 textScroll.config(command=textArea.yview)
 
 # Highlighted colors
-syntaxColors = {'function': '#346eeb', 'control': '#bf7908', 'type': '#7e47a6', 'oop': '#c94260', 'comment': '#969696', 'string': '#3b8f3f', 'number': '#389ba1'}
+syntaxColors = {'function': '#346eeb', 'control': '#bf7908', 'type': '#7e47a6', 'oop': '#c94260', 'comment': '#969696', 'string': '#3b8f3f', 'number': '#389ba1', 'warn': '#969409'}
 for category, color in syntaxColors.items():
     textArea.tag_config(category, foreground=color)
 
@@ -155,7 +195,7 @@ outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollc
 outputArea.place(relx=0, rely=0.7, relwidth=0.8, relheight=0.3)
 outputArea.tag_config('system', foreground='#0BA28D')
 outputArea.tag_config('warn', foreground='yellow')
-outputArea.tag_config('error', foreground='red')
+outputArea.tag_config('error', foreground='#ff1c1c')
 
 outputScroll.config(command=outputArea.yview)
 
@@ -191,6 +231,12 @@ cacheMenu = tk.Menu(menuBar, tearoff=0)
 cacheMenu.add_command(label="Clear Cache", command=CacheLoader.clear)
 cacheMenu.add_command(label="Uncache", command=Apricot.uncache)
 menuBar.add_cascade(label="Cache", menu=cacheMenu)
+
+# Dev menu
+devMenu = tk.Menu(menuBar, tearoff=0)
+devMenu.add_command(label="Regex", command=showRegex)
+devMenu.add_command(label="Terminal", command=terminal)
+menuBar.add_cascade(label="Dev", menu=devMenu)
 
 # Help menu
 helpMenu = tk.Menu(menuBar, tearoff=0)

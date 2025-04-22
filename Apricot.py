@@ -9,17 +9,19 @@ import requests
 import Cache
 from Cache import CacheLoader
 from Classes import *
-from Compiler import Compiler
+from Compiler import Compiler, ExitExecution
 import Functions as F
 import Packager
 import Regex
-from Text import ColorText as C
+from Text import ColorText as C, ColorText
 
 DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'var': Inferred, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
 
 def compileCode(code: str, file: str, output: str, standalone: bool = False, noCache: bool = False):
     # Setup
     env = DEFAULTENV
+    captureBuffer = io.StringIO()
+    sys.stdout = captureBuffer
 
     # Time
     start = time.perf_counter()
@@ -32,19 +34,20 @@ def compileCode(code: str, file: str, output: str, standalone: bool = False, noC
         caching = None
         env["_constants"] = cache.consts
 
+        # Print uncache
+        duration = round((time.perf_counter() - start) * 1000, 1)
+        print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{duration} ms]{C.RESET}')
+
         # Load warnings
         for warning in cache.warnings:
             Compiler.warn(*warning)
-        # Print uncache
-        duration = round((time.perf_counter() - start) * 1000, 1)
-        print(f'{C.CYAN}Uncached ".cache\\_cache_.pkl" [{duration} ms]\n{C.RESET}')
-
     # Recompile
     else:
+        captured = ''
         compiled, caching, consts = Compiler.compile(code)
         env["_constants"] = consts
         duration = round((time.perf_counter() - start)*1000, 1)
-        print(f'{C.CYAN}Compiled {os.path.basename(file)} [{duration} ms]\n{C.RESET}')
+        print(f'{C.CYAN}Compiled {os.path.basename(file)} [{duration} ms]{C.RESET}')
 
     # Write the compiled code to a file
     # Embed if specified
@@ -66,10 +69,14 @@ def compileCode(code: str, file: str, output: str, standalone: bool = False, noC
     if not noCache and caching is not None:
         CacheLoader.store(caching)
 
-    # Returning
-    return compiled, env, duration
+    # Output
+    sys.stdout = sys.__stdout__
+    captured = captureBuffer.getvalue()
 
-def execute(code: str, env: dict = None):
+    # Returning
+    return compiled, env, captured
+
+def execute(code: str, file: str, env: dict = None):
     # Setup
     start = time.perf_counter()
     env = env or DEFAULTENV
@@ -78,15 +85,17 @@ def execute(code: str, env: dict = None):
     captureBuffer = io.StringIO()
     sys.stdout = captureBuffer
     # Execute
-    exec(code, env, env)
-    # Reset buffer
-    sys.stdout = sys.__stdout__
-    captured = captureBuffer.getvalue()
-    print(captured)
+    try:
+        exec(code, env, env)
+    except ExitExecution: pass
 
     # Prints
     duration = round((time.perf_counter() - start) * 1000, 1)
-    print(f'\n{C.CYAN}Ran {os.path.basename(sys.argv[0])} [{duration} ms]\n{C.RESET}')
+    print(f'{C.CYAN}Ran {file} [{duration} ms]\n{C.RESET}')
+
+    # Reset buffer
+    sys.stdout = sys.__stdout__
+    captured = captureBuffer.getvalue()
 
     return captured, duration
 
@@ -100,9 +109,9 @@ def uncache(output=''):
             f.write(snapshot.compiled)
 
 def run(code: str, file: str, output: str, noCache: bool = False):
-    compiled, env, compileTime = compileCode(code, file, output, noCache=noCache)
-    output, runTime = execute(compiled, env)
-    return output, compileTime, runTime
+    compiled, env, captured = compileCode(code, file, output, noCache=noCache)
+    output, runTime = execute(compiled, file, env)
+    return captured + output, runTime
 
 def requireArgs(least: int, most: int):
     if len(sys.argv) < least:
@@ -134,6 +143,8 @@ def main():
     # Empty
     if len(sys.argv) < 2:
         sys.argv = [sys.argv[0], *input("Enter command:").split(' ')]
+    if getattr(sys, 'frozen', False):
+        ColorText.system = 'executable'
 
     # Commands
     if sys.argv[1] == "compile":
@@ -146,7 +157,7 @@ def main():
             with open(sys.argv[2], 'r') as f:
                 code = f.read()
 
-        compileCode(code, sys.argv[2], sys.argv[3])
+        print(compileCode(code, sys.argv[2], sys.argv[3])[2])
 
     elif sys.argv[1] == "standalone":
         requireArgs(4, 4)
@@ -170,7 +181,7 @@ def main():
         # Exec
         with open(sys.argv[2]) as f:
             code = f.read()
-            execute(code)
+            print(execute(code, sys.argv[2])[0])
 
     elif sys.argv[1] == "uncache":
         requireArgs(3, 3)
@@ -190,7 +201,7 @@ def main():
                 code = f.read()
 
         requireArgs(3, 6)
-        run(code, sys.argv[2], sys.argv[3] if len(sys.argv) >= 4 else '', '--nocache' in sys.argv)
+        print(run(code, sys.argv[2], sys.argv[3] if len(sys.argv) >= 4 else '', '--nocache' in sys.argv)[0])
 
     elif sys.argv[1] == "install":
         requireArgs(3, 3)
