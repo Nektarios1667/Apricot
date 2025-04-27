@@ -29,7 +29,7 @@ def terminal():
     win = tk.Toplevel()
     win.title("Apricot Terminal")
     textBox = tk.Text(win, wrap="none")  # Disable wrapping
-    textBox.insert("1.0", text)
+    # textBox.insert("1.0", text)
     textBox.pack(expand=True, fill="both")
 
 # Open file
