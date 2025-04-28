@@ -85,10 +85,18 @@ def refreshFiles(_=None):
     if file:
         filesSelect.delete(0, tk.END)
         directory = os.path.dirname(file)
+        # Files
         for f in os.listdir(directory):
             if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f)[1].lower() in ['.apr', '.apricot', '.apl', '.apricotlib', '.apricotlibrary']:
                 files.append(f)
                 filesSelect.insert(tk.END, f)
+
+        # Libraries
+        directory += '/.libraries'
+        for f in os.listdir(directory):
+            if os.path.isfile(os.path.join(directory, f)) and os.path.splitext(f)[1].lower() in ['.apr', '.apricot', '.apl', '.apricotlib', '.apricotlibrary']:
+                files.append(f'.libraries/{f}')
+                filesSelect.insert(tk.END, f'.libraries/{f}')
 
 
 # Save file

@@ -38,12 +38,15 @@ SYNTAXCATEGORIES = r"""
 \bstr\b::type
 \btuple\b::type
 \bvar\b::type
+\btrue\b::type
+\bfalse\b::type
 
 \bclass\b::oop
 \bfunc\b::oop
 \binherits\b::oop
 \bthis\b::oop
 \btype\b::oop
+\bvalue\b::oop
 
 #^[^;]+(?:\/\/)?$::warn
 
