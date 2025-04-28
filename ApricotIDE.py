@@ -1,7 +1,7 @@
 import os.path
 import re
 import sys
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 import tkinter as tk
 
 import Apricot
@@ -12,10 +12,10 @@ import Regex
 from Text import ColorText
 
 
-def showRegex():
+def showRegex(_=None):
     # Text
     text = ''
-    moduleVars = {name: getattr(Regex, name) for name in dir(Regex) if not name.startswith("__")}
+    moduleVars = {name:getattr(Regex, name) for name in dir(Regex) if not name.startswith("__")}
 
     for var, val in moduleVars.items():
         text += f'{var} = {val}\n'
@@ -27,7 +27,8 @@ def showRegex():
     textBox.insert("1.0", text)
     textBox.pack(expand=True, fill="both")
 
-def openConsole():
+
+def openConsole(_=None):
     global console
     # Window
     consoleText = console.getText()
@@ -37,7 +38,7 @@ def openConsole():
     textBox.insert("1.0", consoleText)
 
     # Syntax highlighting
-    consoleHighlights = {line.split('::')[0]: line.split('::')[1] for line in Highlighting.CONSOLE.splitlines() if line}
+    consoleHighlights = {line.split('::')[0]:line.split('::')[1] for line in Highlighting.CONSOLE.splitlines() if line}
     for level, color in consoleHighlights.items():
         textBox.tag_remove(level, '1.0', tk.END)
         textBox.tag_config(level, foreground=color)
@@ -49,6 +50,7 @@ def openConsole():
     # Disable and pack
     textBox.config(state='disabled')
     textBox.pack(expand=True, fill="both")
+
 
 # Open file
 def openFile(path: str = ''):
@@ -64,6 +66,7 @@ def openFile(path: str = ''):
     onKeyRelease()
     refreshFiles()
 
+
 def selectFile(_=None):
     global file
     file = filesSelect.get(filesSelect.curselection()[0])
@@ -74,7 +77,8 @@ def selectFile(_=None):
 
     syntaxHighlighting()
 
-def refreshFiles():
+
+def refreshFiles(_=None):
     global file, files
     files = []
 
@@ -88,20 +92,22 @@ def refreshFiles():
 
 
 # Save file
-def saveAsFile():
+def saveAsFile(_=None):
     path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Apricot files", "*.apr"), ("All files", "*.*")])
     if path:
         with open(path, "w") as f:
             f.write(textArea.get("1.0", tk.END))
 
-def saveFile():
+
+def saveFile(_=None):
     if file:
         with open(file, 'w') as f:
             f.write(textArea.get('1.0', tk.END))
     else:
         saveAsFile()
 
-def newFile():
+
+def newFile(_=None):
     global file
 
     saveFile()
@@ -109,9 +115,11 @@ def newFile():
     textArea.delete("1.0", tk.END)
     textArea.insert(tk.END, '// New Apricot file')
 
+
 # About dialog
-def showAbout():
+def showAbout(_=None):
     messagebox.showinfo("About Apricot Editor", "Apricot Editor\nBuilt with Tkinter\nBy Nektarios")
+
 
 # Syntax highlighting
 def syntaxHighlighting(_=None):
@@ -127,6 +135,7 @@ def syntaxHighlighting(_=None):
             endIdx = f"1.0 + {match.end()} chars"
             textArea.tag_add(category, startIdx, endIdx)
 
+
 def updateOutput(text):
     # Print
     outputArea.config(state='normal')
@@ -137,7 +146,7 @@ def updateOutput(text):
     outputArea.tag_add('system', f'{int(float(outputArea.index("end-1c")))}.0', f'{int(float(outputArea.index("end-1c")))}.end')
 
     # Colors
-    for pattern, category in {'\u200B[\s\S]+?\uFEFF': 'error', '\u200D[\s\S]+?\uFEFF': 'system', '\u200C[\s\S]+?\uFEFF': 'warn'}.items():
+    for pattern, category in {'\u200B[\s\S]+?\uFEFF':'error', '\u200D[\s\S]+?\uFEFF':'system', '\u200C[\s\S]+?\uFEFF':'warn'}.items():
         for match in re.finditer(pattern, text, flags=re.MULTILINE):
             startIdx = f"1.0 + {match.start()} chars"
             endIdx = f"1.0 + {match.end()} chars"
@@ -145,8 +154,9 @@ def updateOutput(text):
 
     outputArea.config(state='disabled')
 
+
 # Run
-def run():
+def run(_=None):
     global console
     # Run
     console, output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
@@ -154,7 +164,8 @@ def run():
     # Update output area
     updateOutput(output)
 
-def runWithoutCache():
+
+def runWithoutCache(_=None):
     global console
     # Run
     console, output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
@@ -162,7 +173,8 @@ def runWithoutCache():
     # Update output area
     updateOutput(output)
 
-def compileCode():
+
+def compileCode(_=None):
     global console
 
     compiled, _, captured, console = Apricot.compileCode(textArea.get('1.0', tk.END), file, '')
@@ -172,7 +184,8 @@ def compileCode():
             f.write(compiled)
     updateOutput(captured)
 
-def standalone():
+
+def standalone(_=None):
     global console
 
     compiled, _, captured, console = Apricot.compileCode(textArea.get('1.0', tk.END), file, '', standalone=True)
@@ -190,23 +203,26 @@ def lineNumbering(_=None):
 
     lines = len(textArea.get('1.0', tk.END).splitlines())
     for i in range(lines):
-        lineNumbers.create_text(2, (i - textScroll.get()[0] * lines)*19 + 4, anchor="nw", text=str(i + 1), font=12, fill='gray')
+        lineNumbers.create_text(2, (i - textScroll.get()[0]*lines)*19 + 4, anchor="nw", text=str(i + 1), font=12, fill='gray')
+
 
 def onKeyRelease(_=None):
     syntaxHighlighting()
     lineNumbering()
+
+
+# Constants
+THEMEGRAY = '#222222'
 
 # Create main window
 root = tk.Tk()
 root.title("Apricot Editor")
 root.geometry("1400x900")
 root.bind('<KeyRelease>', onKeyRelease)
+root.config(bg=THEMEGRAY)
 
 # Highlighted words
-syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in Highlighting.SYNTAXCATEGORIES.splitlines() if line and line[0] not in ['\n', '#']]}
-
-# Constants
-THEMEGRAY = '#222222'
+syntaxHighlights = {k:v for k, v in [line.strip().split('::') for line in Highlighting.SYNTAXCATEGORIES.splitlines() if line and line[0] not in ['\n', '#']]}
 
 # Variables
 file = sys.argv[1] if len(sys.argv) >= 2 else ''
@@ -214,32 +230,48 @@ files = []
 ColorText.system = 'ide'
 console = Console.Console()
 
-# File selector
-filesSelect = tk.Listbox(bg=THEMEGRAY, fg='white', font=("Consola", 14))
-filesSelect.place(relx=0.8125, rely=0, relwidth=0.1875, relheight=1.0)
-filesSelect.bind("<Double-Button-1>", selectFile)
+# Style
+style = ttk.Style()
+style.theme_use('default')
+
+style.configure(
+    "Simple.Vertical.TScrollbar",
+    troughcolor=THEMEGRAY,
+    background='#777777',
+    relief='flat',
+    borderwidth=0
+)
+style.map("Simple.Vertical.TScrollbar", background=[('active', '#888888')])
+style.layout("Simple.Vertical.TScrollbar", [
+    ('Vertical.Scrollbar.trough', {
+        'children': [('Vertical.Scrollbar.thumb', {'unit': '1', 'sticky': 'nswe'})]
+    })
+])
 
 # Line numbers
 lineNumbers = tk.Canvas(root, width=50, bg=THEMEGRAY, bd=0, highlightthickness=0)
-lineNumbers.place(relx=0, rely=0, width=30, relheight=0.8)
+lineNumbers.place(x=0, y=0, relx=0, rely=0, width=50, relheight=.8)
 
 # Text area
-textScroll = tk.Scrollbar()
+textScroll = ttk.Scrollbar(style='Simple.Vertical.TScrollbar')
+
 
 def areaScroll(*args):
     textScroll.set(*args)
     lineNumbering()
 
-textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32)
-textArea.place(x=30, rely=0, relwidth=0.78, relheight=0.8)
+
+textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32, highlightbackground='gray')
+textArea.place(x=50, y=0, relx=0, rely=0, relwidth=0.8, relheight=0.8)
+
 
 def barScroll(*args):
     textArea.yview(*args)
     lineNumbering()
 
+
 textScroll.config(command=barScroll)
-textScroll.place(relx=0.8, rely=0, relheight=0.7)
-textScroll.lift()
+textScroll.place(x=0, y=5, relx=0.8, rely=0, relheight=0.8, height=-10)
 
 # Highlighted colors
 syntaxColors = {line.split('::')[0]: line.split('::')[1] for line in Highlighting.SYNTAXCOLORS.splitlines() if line}
@@ -247,16 +279,42 @@ for category, color in syntaxColors.items():
     textArea.tag_config(category, foreground=color)
 
 # Output area
-outputScroll = tk.Scrollbar()
-outputScroll.place(relx=0.8, rely=0.7, relheight=0.3)
+outputScroll = ttk.Scrollbar(style='Simple.Vertical.TScrollbar')
+outputScroll.place(x=0, y=5, relx=0.8, rely=.8, relheight=0.2, height=-10)
 
-outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32)
-outputArea.place(relx=0, rely=0.7, relwidth=0.8, relheight=0.3)
+outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32, highlightbackground='gray')
+outputArea.place(relx=0, rely=0.8, relwidth=0.8, relheight=0.2, width=50)
 outputArea.tag_config('system', foreground='#0BA28D')
 outputArea.tag_config('warn', foreground='yellow')
 outputArea.tag_config('error', foreground='#ff1c1c')
 
 outputScroll.config(command=outputArea.yview)
+
+# File selector
+filesSelect = tk.Listbox(bg=THEMEGRAY, fg='#9e9e9e', font=("Consola", 14), highlightbackground='gray', selectbackground='#363636', highlightcolor='darkgray', exportselection=False, activestyle='none')
+filesSelect.place(relx=0.8125, rely=0, relwidth=0.1875, relheight=1.0)
+filesSelect.bind("<Double-Button-1>", selectFile)
+
+
+# Timed functions
+def selectFirst():
+    filesSelect.selection_set(0)
+    filesSelect.see(0)
+root.after(100, selectFirst)
+
+# Lifts
+textScroll.lift()
+outputScroll.lift()
+
+# Hotkeys
+root.bind('<Control-o>', lambda event: openFile())  # Ctrl+O
+root.bind('<Control-n>', newFile)
+root.bind('<Control-s>', saveFile)  # Ctrl+S
+root.bind('<Control-s>', saveAsFile)  # Ctrl+Shift+S
+root.bind('<Control-r>', run)  # Ctrl+R
+root.bind('<Control-R>', runWithoutCache)  # Ctrl+Shift+R
+root.bind('<Control-C>', openConsole)  # Ctrl+Shift+C
+root.bind('<Control-Alt-r>', onKeyRelease)  # Ctrl+Alt+R
 
 # Create menu bar
 menuBar = tk.Menu(root)
