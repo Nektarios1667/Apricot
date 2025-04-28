@@ -96,13 +96,13 @@ def saveAsFile(_=None):
     path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Apricot files", "*.apr"), ("All files", "*.*")])
     if path:
         with open(path, "w") as f:
-            f.write(textArea.get("1.0", tk.END))
+            f.write(textArea.get("1.0", 'end-1c'))
 
 
 def saveFile(_=None):
     if file:
         with open(file, 'w') as f:
-            f.write(textArea.get('1.0', tk.END))
+            f.write(textArea.get('1.0', 'end-1c'))
     else:
         saveAsFile()
 
@@ -310,7 +310,7 @@ outputScroll.lift()
 root.bind('<Control-o>', lambda event: openFile())  # Ctrl+O
 root.bind('<Control-n>', newFile)
 root.bind('<Control-s>', saveFile)  # Ctrl+S
-root.bind('<Control-s>', saveAsFile)  # Ctrl+Shift+S
+root.bind('<Control-S>', saveAsFile)  # Ctrl+Shift+S
 root.bind('<Control-r>', run)  # Ctrl+R
 root.bind('<Control-R>', runWithoutCache)  # Ctrl+Shift+R
 root.bind('<Control-C>', openConsole)  # Ctrl+Shift+C
