@@ -62,9 +62,9 @@ System::#8378ab
 
 SYNTAXCOLORS = r"""
 function::#346eeb
-control::#bf7908
-type::#7e47a6
-oop::#c94260
+control::#e09110
+type::#ba71f0
+oop::#f26181
 comment::#969696
 string::#3b8f3f
 number::#389ba1

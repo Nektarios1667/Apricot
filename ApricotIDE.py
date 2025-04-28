@@ -261,7 +261,7 @@ def areaScroll(*args):
     lineNumbering()
 
 
-textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32, highlightbackground='gray')
+textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32, highlightbackground='gray', selectbackground='#174657')
 textArea.place(x=50, y=0, relx=0, rely=0, relwidth=0.8, relheight=0.8)
 
 
@@ -282,7 +282,7 @@ for category, color in syntaxColors.items():
 outputScroll = ttk.Scrollbar(style='Simple.Vertical.TScrollbar')
 outputScroll.place(x=0, y=5, relx=0.8, rely=.8, relheight=0.2, height=-10)
 
-outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32, highlightbackground='gray')
+outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32, highlightbackground='gray', selectbackground='#20627a')
 outputArea.place(relx=0, rely=0.8, relwidth=0.8, relheight=0.2, width=50)
 outputArea.tag_config('system', foreground='#0BA28D')
 outputArea.tag_config('warn', foreground='yellow')
