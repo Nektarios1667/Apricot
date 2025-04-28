@@ -1,3 +1,4 @@
+SYNTAXCATEGORIES = r"""
 \bclose\b::function
 \benumerate\b::function
 \binput\b::function
@@ -49,3 +50,23 @@
 //.*::comment
 (["'])[^(?:\1)]+?\1::string
 \d+(?:\.\d+)?::number
+"""
+
+CONSOLE = r"""
+Warning::#edcd15
+Log::#1db1de
+Issue::#ff512e
+Error::#ff2e2e
+System::#8378ab
+"""
+
+SYNTAXCOLORS = r"""
+function::#346eeb
+control::#bf7908
+type::#7e47a6
+oop::#c94260
+comment::#969696
+string::#3b8f3f
+number::#389ba1
+warn::#969409
+"""

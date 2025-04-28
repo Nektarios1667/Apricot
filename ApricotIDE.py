@@ -7,6 +7,7 @@ import tkinter as tk
 import Apricot
 from Cache import *
 import Console
+import Highlighting
 import Regex
 from Text import ColorText
 
@@ -36,7 +37,7 @@ def openConsole():
     textBox.insert("1.0", consoleText)
 
     # Syntax highlighting
-    consoleHighlights = {'Warning': '#edcd15', 'Log': '#1db1de', 'Issue': '#ff512e', 'Error': '#ff2e2e', 'System': '#8378ab'}
+    consoleHighlights = {line.split('::')[0]: line.split('::')[1] for line in Highlighting.CONSOLE.splitlines() if line}
     for level, color in consoleHighlights.items():
         textBox.tag_remove(level, '1.0', tk.END)
         textBox.tag_config(level, foreground=color)
@@ -60,7 +61,7 @@ def openFile(path: str = ''):
             textArea.delete("1.0", tk.END)
             textArea.insert(tk.END, content)
 
-    syntaxHighlighting()
+    onKeyRelease()
     refreshFiles()
 
 def selectFile(_=None):
@@ -181,15 +182,28 @@ def standalone():
             f.write(compiled)
     updateOutput(captured)
 
+
+def lineNumbering(_=None):
+    global lineNumbers
+
+    lineNumbers.delete('all')
+
+    lines = len(textArea.get('1.0', tk.END).splitlines())
+    for i in range(lines):
+        lineNumbers.create_text(2, (i - textScroll.get()[0] * lines)*19 + 4, anchor="nw", text=str(i + 1), font=12, fill='gray')
+
+def onKeyRelease(_=None):
+    syntaxHighlighting()
+    lineNumbering()
+
 # Create main window
 root = tk.Tk()
 root.title("Apricot Editor")
 root.geometry("1400x900")
-root.bind('<KeyRelease>', syntaxHighlighting)
+root.bind('<KeyRelease>', onKeyRelease)
 
 # Highlighted words
-with open('highlighting.txt', 'r') as f:
-    syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in f.readlines() if line[0] not in ['\n', '#']]}
+syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in Highlighting.SYNTAXCATEGORIES.splitlines() if line and line[0] not in ['\n', '#']]}
 
 # Constants
 THEMEGRAY = '#222222'
@@ -205,17 +219,30 @@ filesSelect = tk.Listbox(bg=THEMEGRAY, fg='white', font=("Consola", 14))
 filesSelect.place(relx=0.8125, rely=0, relwidth=0.1875, relheight=1.0)
 filesSelect.bind("<Double-Button-1>", selectFile)
 
+# Line numbers
+lineNumbers = tk.Canvas(root, width=50, bg=THEMEGRAY, bd=0, highlightthickness=0)
+lineNumbers.place(relx=0, rely=0, width=30, relheight=0.8)
+
 # Text area
 textScroll = tk.Scrollbar()
+
+def areaScroll(*args):
+    textScroll.set(*args)
+    lineNumbering()
+
+textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32)
+textArea.place(x=30, rely=0, relwidth=0.78, relheight=0.8)
+
+def barScroll(*args):
+    textArea.yview(*args)
+    lineNumbering()
+
+textScroll.config(command=barScroll)
 textScroll.place(relx=0.8, rely=0, relheight=0.7)
-
-textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=textScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32)
-textArea.place(relx=0, rely=0, relwidth=0.8, relheight=0.8)
-
-textScroll.config(command=textArea.yview)
+textScroll.lift()
 
 # Highlighted colors
-syntaxColors = {'function': '#346eeb', 'control': '#bf7908', 'type': '#7e47a6', 'oop': '#c94260', 'comment': '#969696', 'string': '#3b8f3f', 'number': '#389ba1', 'warn': '#969409'}
+syntaxColors = {line.split('::')[0]: line.split('::')[1] for line in Highlighting.SYNTAXCOLORS.splitlines() if line}
 for category, color in syntaxColors.items():
     textArea.tag_config(category, foreground=color)
 
