@@ -2,6 +2,8 @@ import os
 import pickle
 import time
 
+import Console
+
 
 class Snapshot:
     def __init__(self):
@@ -10,13 +12,15 @@ class Snapshot:
         self.compiled = None
         self.timestamp = None
         self.warnings = None
+        self.console = None
 
-    def save(self, code: str, compiled: str, consts: dict, warnings: list):
+    def save(self, code: str, compiled: str, consts: dict, warnings: list, console: Console.Console):
         self.consts = consts
         self.code = code
         self.compiled = compiled
         self.warnings = warnings
         self.timestamp = time.time()
+        self.console = console
 
     def __eq__(self, other):
         if isinstance(other, Snapshot):

@@ -16,7 +16,7 @@ class Message:
     def __str__(self):
         return f'[{self.timestamp.strftime("%H:%M:%S.%f")[:-3]}] {self.level}: {self.text}'
 
-class Terminal:
+class Console:
     def __init__(self):
         self.messages = []
 

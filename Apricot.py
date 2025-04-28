@@ -17,7 +17,7 @@ from Text import ColorText as C, ColorText
 
 DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'var': Inferred, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
 
-def compileCode(code: str, file: str, output: str, standalone: bool = False, noCache: bool = False):
+def compileCode(code: str, file: str, output: str = '', standalone: bool = False, noCache: bool = False):
     # Setup
     env = DEFAULTENV
     captureBuffer = io.StringIO()
@@ -30,7 +30,7 @@ def compileCode(code: str, file: str, output: str, standalone: bool = False, noC
     cache = CacheLoader.find(code)
     if not noCache and cache is not None:
         # Load
-        compiled, consts = cache.compiled, cache.consts
+        compiled, consts, console = cache.compiled, cache.consts, cache.console
         caching = None
         env["_constants"] = cache.consts
 
@@ -43,8 +43,15 @@ def compileCode(code: str, file: str, output: str, standalone: bool = False, noC
             Compiler.warn(*warning)
     # Recompile
     else:
-        captured = ''
-        compiled, caching, consts = Compiler.compile(code)
+        try:
+            compiled, caching, consts, console = Compiler.compile(code)
+        except ExitExecution:
+            duration = round((time.perf_counter() - start)*1000, 1)
+            print(f'{C.CYAN}Compiled {os.path.basename(file)} [{duration} ms]{C.RESET}')
+            sys.stdout = sys.__stdout__
+            captured = captureBuffer.getvalue()
+            return Compiler.compiled, Compiler.constants, captured, Compiler.console
+
         env["_constants"] = consts
         duration = round((time.perf_counter() - start)*1000, 1)
         print(f'{C.CYAN}Compiled {os.path.basename(file)} [{duration} ms]{C.RESET}')
@@ -74,7 +81,7 @@ def compileCode(code: str, file: str, output: str, standalone: bool = False, noC
     captured = captureBuffer.getvalue()
 
     # Returning
-    return compiled, env, captured
+    return compiled, env, captured, console
 
 def execute(code: str, file: str, env: dict = None):
     # Setup
@@ -109,9 +116,9 @@ def uncache(output=''):
             f.write(snapshot.compiled)
 
 def run(code: str, file: str, output: str, noCache: bool = False):
-    compiled, env, captured = compileCode(code, file, output, noCache=noCache)
-    output, runTime = execute(compiled, file, env)
-    return captured + output, runTime
+    compiled, env, compileOutput, console = compileCode(code, file, output, noCache=noCache)
+    exectueOutput, runTime = execute(compiled, file, env)
+    return console, compileOutput + exectueOutput, runTime
 
 def requireArgs(least: int, most: int):
     if len(sys.argv) < least:

@@ -11,6 +11,7 @@ hashtag: myHashtag = "#tag";
 
 // Constant definition
 const: PI = 3.1415926;
+const: PI = 3.1415926;
 
 // Class
 class improvedString inherits str:
@@ -69,4 +70,7 @@ log(^point);
 
 // Const
 log(PI);
+
+
+
 

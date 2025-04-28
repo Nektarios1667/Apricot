@@ -1,10 +1,12 @@
 import os.path
 import re
+import sys
 from tkinter import filedialog, messagebox
 import tkinter as tk
 
 import Apricot
 from Cache import *
+import Console
 import Regex
 from Text import ColorText
 
@@ -24,18 +26,33 @@ def showRegex():
     textBox.insert("1.0", text)
     textBox.pack(expand=True, fill="both")
 
-def terminal():
+def openConsole():
+    global console
     # Window
+    consoleText = console.getText()
     win = tk.Toplevel()
-    win.title("Apricot Terminal")
-    textBox = tk.Text(win, wrap="none")  # Disable wrapping
-    # textBox.insert("1.0", text)
+    win.title("Apricot Console")
+    textBox = tk.Text(win, wrap="none", background=THEMEGRAY, foreground='white')  # Disable wrapping
+    textBox.insert("1.0", consoleText)
+
+    # Syntax highlighting
+    consoleHighlights = {'Warning': '#edcd15', 'Log': '#1db1de', 'Issue': '#ff512e', 'Error': '#ff2e2e', 'System': '#8378ab'}
+    for level, color in consoleHighlights.items():
+        textBox.tag_remove(level, '1.0', tk.END)
+        textBox.tag_config(level, foreground=color)
+        for match in re.finditer(fr'\[[\d:.]+] *{level}:', consoleText):
+            startIdx = f"1.0 + {match.start()} chars"
+            endIdx = f"1.0 + {match.end()} chars"
+            textBox.tag_add(level, startIdx, endIdx)
+
+    # Disable and pack
+    textBox.config(state='disabled')
     textBox.pack(expand=True, fill="both")
 
 # Open file
-def openFile():
+def openFile(path: str = ''):
     global file
-    path = filedialog.askopenfilename(filetypes=[("Apricot files", "*.apr;*.apricot;*.apl;*.aprlib;*.apricotlib;*.apricotlibrary")])
+    path = path or filedialog.askopenfilename(filetypes=[("Apricot files", "*.apr;*.apricot;*.apl;*.aprlib;*.apricotlib;*.apricotlibrary")])
     if path:
         file = path
         with open(path, "r") as f:
@@ -129,26 +146,40 @@ def updateOutput(text):
 
 # Run
 def run():
+    global console
     # Run
-    output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
+    console, output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '')
 
     # Update output area
     updateOutput(output)
 
 def runWithoutCache():
+    global console
     # Run
-    output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
+    console, output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
 
     # Update output area
     updateOutput(output)
 
 def compileCode():
-    path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
-    Apricot.compileCode(textArea.get('1.0', tk.END), file, output=path)
+    global console
+
+    compiled, _, captured, console = Apricot.compileCode(textArea.get('1.0', tk.END), file, '')
+    if compiled:
+        path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
+        with open(path, 'w') as f:
+            f.write(compiled)
+    updateOutput(captured)
 
 def standalone():
-    path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
-    Apricot.compileCode(textArea.get('1.0', tk.END), file, output=path, standalone=True)
+    global console
+
+    compiled, _, captured, console = Apricot.compileCode(textArea.get('1.0', tk.END), file, '', standalone=True)
+    if compiled:
+        path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
+        with open(path, 'w') as f:
+            f.write(compiled)
+    updateOutput(captured)
 
 # Create main window
 root = tk.Tk()
@@ -164,9 +195,10 @@ with open('highlighting.txt', 'r') as f:
 THEMEGRAY = '#222222'
 
 # Variables
-file = ''
+file = sys.argv[1] if len(sys.argv) >= 2 else ''
 files = []
 ColorText.system = 'ide'
+console = Console.Console()
 
 # File selector
 filesSelect = tk.Listbox(bg=THEMEGRAY, fg='white', font=("Consola", 14))
@@ -235,13 +267,16 @@ menuBar.add_cascade(label="Cache", menu=cacheMenu)
 # Dev menu
 devMenu = tk.Menu(menuBar, tearoff=0)
 devMenu.add_command(label="Regex", command=showRegex)
-devMenu.add_command(label="Terminal", command=terminal)
+devMenu.add_command(label="Console", command=openConsole)
 menuBar.add_cascade(label="Dev", menu=devMenu)
 
 # Help menu
 helpMenu = tk.Menu(menuBar, tearoff=0)
 helpMenu.add_command(label="About", command=showAbout)
 menuBar.add_cascade(label="Help", menu=helpMenu)
+
+# Open file
+openFile(os.path.join(os.path.dirname(sys.argv[0]), file))
 
 # Run the app
 root.mainloop()
