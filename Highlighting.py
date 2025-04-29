@@ -48,11 +48,14 @@ SYNTAXCATEGORIES = r"""
 \btype\b::oop
 \bvalue\b::oop
 
-#^[^;]+(?:\/\/)?$::warn
-
 //.*::comment
 ("|')[^\1]*?\1::string
 \d+(?:\.\d+)?::number
+
+\{.*\}::special
+(\$)("|')[^\2]*?\2::special
+(\^)\w+::special
+(@)\w+::special
 """
 
 CONSOLE = r"""
@@ -72,4 +75,5 @@ comment::#969696
 string::#3b8f3f
 number::#389ba1
 warn::#969409
+special::#cf6142
 """

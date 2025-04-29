@@ -139,8 +139,12 @@ def syntaxHighlighting(_=None):
     code = textArea.get('1.0', tk.END)
     for highlight, category in syntaxHighlights.items():
         for match in re.finditer(highlight, code, flags=re.MULTILINE):
-            startIdx = f"1.0 + {match.start()} chars"
-            endIdx = f"1.0 + {match.end()} chars"
+            if match.lastindex and category == 'special':
+                startIdx = f"1.0 + {match.start(1)} chars"
+                endIdx = f"1.0 + {match.end(1)} chars"
+            else:
+                startIdx = f"1.0 + {match.start()} chars"
+                endIdx = f"1.0 + {match.end()} chars"
             textArea.tag_add(category, startIdx, endIdx)
 
 
