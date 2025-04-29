@@ -74,8 +74,9 @@ class Compiler:
 
     @staticmethod
     def call(func, args, l):
+        from Apricot import DEFAULTENV
         # Builtin
-        if func.__module__ == "builtins":
+        if func.__module__ == "builtins" or func in DEFAULTENV:
             return func(*args)
 
         # Check params
@@ -149,6 +150,36 @@ class Compiler:
                 setattr(library, var, val)
 
         return {name: library}
+
+    @staticmethod
+    def attribute(obj: object, name: str, value: object, l: int, varType: type = ''):
+        """
+        Built-in function used in compilation to handle instance attribution creation and assignment.
+        :param obj:
+        :param name:
+        :param value:
+        :param l:
+        :param varType:
+        :return:
+        """
+        # Inferred type
+        if varType is Inferred:
+            varType = type(value)
+
+        if varType:
+            if not Compiler.typeCheck(value, varType, l):
+                Compiler.error('TypeError', l + 1, extra=f'Variable type defined as -\x1a{varType.__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
+            else:
+                if not hasattr(obj, '__varTypes'):
+                    setattr(obj, '__varTypes', {})
+                getattr(obj, '__varTypes')[name] = varType
+        else:
+            if not hasattr(obj, name):
+                Compiler.error('VariableError', l + 1, extra=f'Variable "{name}" has not yet been created', description=name)
+            elif not Compiler.typeCheck(value, getattr(obj, '__varTypes')[name], l):
+                Compiler.error('TypeError', l + 1, extra=f'Variable type defined as -\x1a{getattr(obj, "__varTypes")[name].__name__}\x1a- but value is -\x1a{type(value).__name__}\x1a-', description=str(value))
+
+        setattr(obj, name, value)
 
     @staticmethod
     def variable(name: str, value, l: int, env: dict, varType: type = ''):
@@ -339,6 +370,24 @@ class Compiler:
         for const, value in constants.items():
             compiled = re.sub(rf'\b{const}(?! *=)\b', value, compiled)
         console.system('Replaced constant references with value')
+
+        # Attribute types
+        num = 0
+        for l, line in enumerate(compiled.splitlines()):
+            attributes = [list(found) for found in re.findall(R.ATTRIBUTES, line)]
+            num += len(attributes)
+            for attr in attributes:
+                compiled = compiled.replace(attr[0], f'instanceAttribute(self, "{attr[2]}", {attr[3]}, {l}, {attr[1]})')
+        console.system(f'Compiled {num} attribute definitions')
+
+        # Plain atrribute declarations
+        num = 0
+        for l, line in enumerate(compiled.splitlines()):
+            plainAttributes = re.findall(R.PLAINATTRIBUTES, line)
+            num += len(plainAttributes)
+            for plain in plainAttributes:
+                compiled = compiled.replace(plain[0], f'instanceAttribute(self, "{plain[1]}", {plain[2]}, {l})')
+        console.system(f'Compiled {num} attribute assignments')
 
         # Variable types
         variables = []

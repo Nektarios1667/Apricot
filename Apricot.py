@@ -1,4 +1,4 @@
-import inspect
+import copy
 import io
 import sys
 import time
@@ -15,11 +15,11 @@ import Packager
 import Regex
 from Text import ColorText as C, ColorText
 
-DEFAULTENV = {'inspect': inspect, 'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'var': Inferred, 'variable': Compiler.variable, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
+DEFAULTENV = {'Function': Callable, 'log': Compiler.log, 'error': Compiler.error, 'load': Compiler.load, 'call': Compiler.call, 'Pointer': Pointer, 'var': Inferred, 'variable': Compiler.variable, 'instanceAttribute': Compiler.attribute, 'giveback': Compiler.giveback, 'NoType': NoType, 'null': None, 'true': True, 'false': False, '_constants': {}, '_varTypes': {}}
 
 def compileCode(code: str, file: str, output: str = '', standalone: bool = False, noCache: bool = False):
     # Setup
-    env = DEFAULTENV
+    env = copy.deepcopy(DEFAULTENV)
     captureBuffer = io.StringIO()
     sys.stdout = captureBuffer
 

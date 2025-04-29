@@ -1,9 +1,9 @@
 include math;
-import functions;
+// import functions;
 
 type hashtag:
     if isinstance(value, str):
-        return value[0] == '#';
+        return value and value[0] == '#';
     else:
         return false;
 
@@ -15,12 +15,11 @@ const: PI = 3.1415926;
 // Class
 class improvedString inherits str:
     func improvedString(str: val): // Initialization function
-        this.value = val;
+        str: this.value = val;
 
     // Method
     func null setChar(str: char, int: idx):
         this.value = this.value[:idx] + char[0] + this.value[idx + 1:];
-
 
 // Function
 func int factorial(int: value):
@@ -58,7 +57,7 @@ Function: fact = factorial;
 log(fact(2));
 
 // Library
-log(functions.multiAdd(1, 2, 3));
+// log(functions.multiAdd(1, 2, 3));
 
 // Implicit typing
 var: number = 0;
