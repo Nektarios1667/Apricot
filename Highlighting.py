@@ -51,7 +51,7 @@ SYNTAXCATEGORIES = r"""
 #^[^;]+(?:\/\/)?$::warn
 
 //.*::comment
-(["'])[^(?:\1)]+?\1::string
+("|')[^\1]*?\1::string
 \d+(?:\.\d+)?::number
 """
 

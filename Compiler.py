@@ -20,6 +20,7 @@ class Compiler:
     compiled = ''
     console = None
     constants = {}
+    strings = []
 
     @staticmethod
     def error(error: str, l: int, line: str = '', description: str = '', extra: str = '', console: Console.Console = None):
@@ -28,9 +29,9 @@ class Compiler:
 
         # Printing and closing
         if description:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""))
+            Compiler.log(F.inject(f'{C.RED}{error}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""), Compiler.strings))
         else:
-            Compiler.log(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""))
+            Compiler.log(F.inject(f'{C.RED}{error}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + ("\n" if extra else ""), Compiler.strings))
         if '-w' in sys.argv:
             with open(sys.argv[sys.argv.index('-w') + 1], 'w') as f:
                 f.write(Compiler.compiled)
@@ -49,9 +50,9 @@ class Compiler:
         line = line or F.getLine(l, Compiler.code)
         # Printing
         if description:
-            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
+            Compiler.log(F.inject(f'{C.YELLOW}{warning}: "{line.strip()}" - "{description.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "", Compiler.strings))
         else:
-            Compiler.log(f'{C.YELLOW}{warning}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "")
+            Compiler.log(F.inject(f'{C.YELLOW}{warning}: "{line.strip()}" @ line {l}\n{extra}{C.RESET}' + "\n" if extra else "", Compiler.strings))
 
         # Console
         if console:
@@ -265,6 +266,7 @@ class Compiler:
         for s, string in enumerate(re.findall(R.STRINGS, compiled)):
             compiled = compiled.replace(string[0], f'\x1a={s}')
             strings.append(string[0])
+        Compiler.strings = strings
         console.system(f'Replaced {s + 1} strings')
 
         # Semicolons
@@ -303,6 +305,9 @@ class Compiler:
                 if found:
                     Compiler.error('SyntaxError', l + 1, description=found[0], extra="Bad phrase", console=console)
         console.system(f'Checked for syntax phrase errors')
+
+        # F-strings
+        compiled = compiled.replace(R.FORMATTEDSTRINGS, 'f=')
 
         # Name errors
         for l, line in enumerate(compiled.splitlines()):

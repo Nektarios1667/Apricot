@@ -50,7 +50,7 @@ def compileCode(code: str, file: str, output: str = '', standalone: bool = False
             print(f'{C.CYAN}Compiled {os.path.basename(file)} [{duration} ms]{C.RESET}')
             sys.stdout = sys.__stdout__
             captured = captureBuffer.getvalue()
-            return Compiler.compiled, Compiler.constants, captured, Compiler.console
+            return Compiler.compiled, Compiler.constants, captured, Compiler.console, -1
 
         env["_constants"] = consts
         duration = round((time.perf_counter() - start)*1000, 1)
@@ -81,7 +81,7 @@ def compileCode(code: str, file: str, output: str = '', standalone: bool = False
     captured = captureBuffer.getvalue()
 
     # Returning
-    return compiled, env, captured, console
+    return compiled, env, captured, console, 1
 
 def execute(code: str, file: str, env: dict = None):
     # Setup
@@ -116,9 +116,13 @@ def uncache(output=''):
             f.write(snapshot.compiled)
 
 def run(code: str, file: str, output: str, noCache: bool = False):
-    compiled, env, compileOutput, console = compileCode(code, file, output, noCache=noCache)
-    exectueOutput, runTime = execute(compiled, file, env)
-    return console, compileOutput + exectueOutput, runTime
+    compiled, env, compileOutput, console, code = compileCode(code, file, output, noCache=noCache)
+    if code > 0:
+        executeOutput, runTime = execute(compiled, file, env)
+    else:
+        executeOutput = ''
+        runTime = 0
+    return console, compileOutput + executeOutput, runTime
 
 def requireArgs(least: int, most: int):
     if len(sys.argv) < least:

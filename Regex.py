@@ -2,15 +2,15 @@ DIRECT = {r'(switch ([^:]+):)': 'match \x1a:1:', r'(this\.(\w+))': 'self.\x1a:1'
           r'(import (.*);)'   : 'globals().update(load(".libraries/\x1a:1.apl"))', r'(include (\w+);)': 'import \x1a:1',
           r'(using (.*):)'    : 'with \x1a:1:', r'(span\((.*)\))': 'range(\x1a:1)', r'(@(\w[\w _0-9]*))\b': "Pointer('\x1a:1', globals())", r'(\^([a-zA-Z_]\w*))': '\x1a:1.val',
           r'(noop;())'        : 'pass', r'(\((.+)\.\.(.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2, \x1a:3)', r'(\((.+)\.\.(.+)\))': 'range(\x1a:1, \x1a:2)', r'((def +\w+)\(this)': '\x1a:1(self'}
-SYNTAX = [*DIRECT.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))']
+SYNTAX = [*DIRECT.values(), r'__init__([^)]*)', r'lambda \w+: ', r'nonlocal \w+', 'async ', 'await ', 'from .* import .*', 'for .* in .*:', '->', r'range(\d+, *\d+(?:, *\d+))', r'''f('|").*?\1''']
 NAMEERRORS = [r'globals\(\)', r'locals\(\)']
-SYNTAXPHRASES = [r'func +\w+ +\w+\(self']
+SYNTAXPHRASES = [r'func +\w+ +\w+\(self', 'f=\d+']
 DIRECTPHRASES = {'else if': 'elif', 'next;': 'continue', r'\btrue\b': 'True', r'\bfalse\b': 'False'}
-
 
 STRINGS = r'''((["'])[^(?:\2)]+?\2)'''
 INLINECOMMENTS = r'''.*//.*$'''
 COMMENTS = r'''//.*'''
+FORMATTEDSTRINGS = r'''$='''
 CLASSNAMES = r'''class +(\w+) *(?:inherits)? *(?:[_a-zA-Z][\w_]*)* *:'''
 CLASSES = r'''class +(\w+) *(?:inherits)? *([_a-zA-Z][\w_]*)* *:'''
 CLASSBLOCKS = r'''class\s+\w+(?:\([^)]*\))?: *\n(?:[ \t]+.*\n*)*'''

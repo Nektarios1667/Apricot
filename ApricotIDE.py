@@ -230,7 +230,7 @@ root.bind('<KeyRelease>', onKeyRelease)
 root.config(bg=THEMEGRAY)
 
 # Highlighted words
-syntaxHighlights = {k:v for k, v in [line.strip().split('::') for line in Highlighting.SYNTAXCATEGORIES.splitlines() if line and line[0] not in ['\n', '#']]}
+syntaxHighlights = {k: v for k, v in [line.strip().split('::') for line in Highlighting.SYNTAXCATEGORIES.splitlines() if line and line[0] not in ['\n', '#']]}
 
 # Variables
 file = sys.argv[1] if len(sys.argv) >= 2 else ''

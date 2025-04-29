@@ -9,7 +9,7 @@ def inject(phrase: str, strings: list[str]):
     """
     phrase = str(phrase)
     for f, fill in enumerate(strings):
-        phrase = phrase.replace(f'\x1a@{f}', fill)
+        phrase = phrase.replace(f'\x1a={f}', fill)
     return phrase
 
 def getLine(line: int, code: str):
