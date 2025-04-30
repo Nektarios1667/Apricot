@@ -7,7 +7,6 @@ SYNTAXCATEGORIES = r"""
 \bquit\b::function
 \brange\b::function
 
-\band\b::control
 \bassert\b::control
 \bbreak\b::control
 \bcatch\b::control
@@ -20,7 +19,6 @@ SYNTAXCATEGORIES = r"""
 \binclude\b::control
 \bnext\b::control
 \bnoop\b::control
-\bor\b::control
 \breturn\b::control
 \btry\b::control
 \busing\b::control

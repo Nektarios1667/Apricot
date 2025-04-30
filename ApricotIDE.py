@@ -194,7 +194,7 @@ def run(_=None):
 def runWithoutCache(_=None):
     global console
     # Run
-    console, output, runTime = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
+    console, output, runTime, _ = Apricot.run(textArea.get('1.0', tk.END), file, '', noCache=True)
 
     # Update output area
     updateOutput(output)
@@ -204,7 +204,7 @@ def runWithoutCache(_=None):
 def compileCode(_=None):
     global console
 
-    compiled, _, captured, console = Apricot.compileCode(textArea.get('1.0', tk.END), file, '')
+    compiled, _, captured, console, _ = Apricot.compileCode(textArea.get('1.0', tk.END), file, '')
     if compiled:
         path = filedialog.asksaveasfilename(defaultextension=".apr", filetypes=[("Python files", "*.py"), ("All files", "*.*")])
         with open(path, 'w') as f:

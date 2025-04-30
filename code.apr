@@ -3,7 +3,7 @@ import functions;
 
 type hashtag:
     if isinstance(value, str):
-        return value and value[0] == '#';
+        return value && value[0] == '#';
     else:
         return false;
 

@@ -484,10 +484,14 @@ class Compiler:
         for apr, py in R.DIRECT.items():
             for found in re.findall(apr, compiled):
                 filledPy = py
-                for p, part in enumerate(found):
-                    filledPy = filledPy.replace(f'\x1a:{p}', part)
+                if isinstance(found, tuple):  # If it has groups, if not it's a string so iterating would break it
+                    for p, part in enumerate(found):
+                        filledPy = filledPy.replace(f'\x1a:{p}', part)
 
-                compiled = compiled.replace(found[0], filledPy)
+                    compiled = compiled.replace(found[0], filledPy)
+                else:  # No groups so replace directly
+                    compiled = compiled.replace(found, filledPy)
+
         console.system(f'Replaced {len(R.DIRECT)} switch replacements')
 
         # Switch phrase replacements
