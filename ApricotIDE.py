@@ -15,7 +15,7 @@ from Text import ColorText
 def showRegex(_=None):
     # Text
     text = ''
-    moduleVars = {name:getattr(Regex, name) for name in dir(Regex) if not name.startswith("__")}
+    moduleVars = {name: getattr(Regex, name) for name in dir(Regex) if not name.startswith("__")}
 
     for var, val in moduleVars.items():
         text += f'{var} = {val}\n'
@@ -29,27 +29,40 @@ def showRegex(_=None):
 
 
 def openConsole(_=None):
-    global console
+    global console, consoleWin, consoleText
+
+    # Console close
+    def onConsoleClose():
+        global consoleWin, consoleText
+        consoleWin.destroy()
+        consoleWin = None
+        consoleText = None
+
     # Window
-    consoleText = console.getText()
-    win = tk.Toplevel()
-    win.title("Apricot Console")
-    textBox = tk.Text(win, wrap="none", background=THEMEGRAY, foreground='white')  # Disable wrapping
-    textBox.insert("1.0", consoleText)
+    if consoleWin is None:
+        consoleWin = tk.Toplevel()
+        consoleWin.title('Apricot Console')
+        consoleWin.protocol("WM_DELETE_WINDOW", onConsoleClose)
+        consoleText = tk.Text(consoleWin, wrap='none', background=THEMEGRAY, foreground='white')
+        consoleText.pack(expand=True, fill='both')
+
+    text = console.getText()
+    consoleText.config(state='normal')
+    consoleText.delete('1.0', tk.END)
+    consoleText.insert('1.0', text)
 
     # Syntax highlighting
-    consoleHighlights = {line.split('::')[0]:line.split('::')[1] for line in Highlighting.CONSOLE.splitlines() if line}
+    consoleHighlights = {line.split('::')[0]: line.split('::')[1] for line in Highlighting.CONSOLE.splitlines() if line}
     for level, color in consoleHighlights.items():
-        textBox.tag_remove(level, '1.0', tk.END)
-        textBox.tag_config(level, foreground=color)
-        for match in re.finditer(fr'\[[\d:.]+] *{level}:', consoleText):
-            startIdx = f"1.0 + {match.start()} chars"
-            endIdx = f"1.0 + {match.end()} chars"
-            textBox.tag_add(level, startIdx, endIdx)
+        consoleText.tag_remove(level, '1.0', tk.END)
+        consoleText.tag_config(level, foreground=color)
+        for match in re.finditer(fr'\[[\d:.]+] *{level}:', text):
+            startIdx = f'1.0 + {match.start()} chars'
+            endIdx = f'1.0 + {match.end()} chars'
+            consoleText.tag_add(level, startIdx, endIdx)
 
     # Disable and pack
-    textBox.config(state='disabled')
-    textBox.pack(expand=True, fill="both")
+    consoleText.config(state='disabled')
 
 
 # Open file
@@ -158,7 +171,7 @@ def updateOutput(text):
     outputArea.tag_add('system', f'{int(float(outputArea.index("end-1c")))}.0', f'{int(float(outputArea.index("end-1c")))}.end')
 
     # Colors
-    for pattern, category in {'\u200B[\s\S]+?\uFEFF':'error', '\u200D[\s\S]+?\uFEFF':'system', '\u200C[\s\S]+?\uFEFF':'warn'}.items():
+    for pattern, category in {'\u200B[\s\S]+?\uFEFF': 'error', '\u200D[\s\S]+?\uFEFF': 'system', '\u200C[\s\S]+?\uFEFF': 'warn'}.items():
         for match in re.finditer(pattern, text, flags=re.MULTILINE):
             startIdx = f"1.0 + {match.start()} chars"
             endIdx = f"1.0 + {match.end()} chars"
@@ -175,6 +188,7 @@ def run(_=None):
 
     # Update output area
     updateOutput(output)
+    if consoleWin is not None: openConsole()
 
 
 def runWithoutCache(_=None):
@@ -184,6 +198,7 @@ def runWithoutCache(_=None):
 
     # Update output area
     updateOutput(output)
+    if consoleWin is not None: openConsole()
 
 
 def compileCode(_=None):
@@ -241,6 +256,8 @@ file = sys.argv[1] if len(sys.argv) >= 2 else ''
 files = []
 ColorText.system = 'ide'
 console = Console.Console()
+consoleWin = None
+consoleText = None
 
 # Style
 style = ttk.Style()
@@ -273,7 +290,8 @@ def areaScroll(*args):
     lineNumbering()
 
 
-textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32, highlightbackground='gray', selectbackground='#174657')
+textArea = tk.Text(root, wrap='word', font=("Consolas", 12), yscrollcommand=areaScroll, bg=THEMEGRAY, fg='white', insertbackground='white', tabs=32, highlightbackground='gray',
+                   selectbackground='#174657')
 textArea.place(x=50, y=0, relx=0, rely=0, relwidth=0.8, relheight=0.8)
 
 
@@ -294,7 +312,8 @@ for category, color in syntaxColors.items():
 outputScroll = ttk.Scrollbar(style='Simple.Vertical.TScrollbar')
 outputScroll.place(x=0, y=5, relx=0.8, rely=.8, relheight=0.2, height=-10)
 
-outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32, highlightbackground='gray', selectbackground='#20627a')
+outputArea = tk.Text(root, wrap='word', height=8, font=("Consola", 12), yscrollcommand=outputScroll.set, bg=THEMEGRAY, fg='white', insertbackground='white', state='disabled', tabs=32,
+                     highlightbackground='gray', selectbackground='#20627a')
 outputArea.place(relx=0, rely=0.8, relwidth=0.8, relheight=0.2, width=50)
 outputArea.tag_config('system', foreground='#0BA28D')
 outputArea.tag_config('warn', foreground='yellow')
@@ -312,6 +331,8 @@ filesSelect.bind("<Double-Button-1>", selectFile)
 def selectFirst():
     filesSelect.selection_set(0)
     filesSelect.see(0)
+
+
 root.after(100, selectFirst)
 
 # Lifts
