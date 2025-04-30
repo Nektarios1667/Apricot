@@ -6,6 +6,8 @@ import Console
 
 
 class Snapshot:
+    VERSION = '2.0'
+
     def __init__(self):
         self.consts = None
         self.code = None
@@ -13,6 +15,7 @@ class Snapshot:
         self.timestamp = None
         self.warnings = None
         self.console = None
+        self.version = Snapshot.VERSION
 
     def save(self, code: str, compiled: str, consts: dict, warnings: list, console: Console.Console):
         self.consts = consts
@@ -22,12 +25,6 @@ class Snapshot:
         self.timestamp = time.time()
         self.console = console
 
-    def __eq__(self, other):
-        if isinstance(other, Snapshot):
-            return self.code == other.code
-        else:
-            return self.code == other
-
 
 class CacheLoader:
     @staticmethod
@@ -35,6 +32,8 @@ class CacheLoader:
         try:
             with open('.cache\\_cache_.pkl', 'rb') as file:
                 cached = pickle.load(file)
+                cached = [snapshot for snapshot in cached if snapshot.version == Snapshot.VERSION]
+
         except FileNotFoundError:
             cached = []
 
@@ -44,7 +43,7 @@ class CacheLoader:
     def find(code: str):
         snapshots = CacheLoader.load()
         for snapshot in snapshots:
-            if snapshot == code:
+            if snapshot == code and snapshot.version == Snapshot.VERSION:
                 return snapshot
 
     @staticmethod
